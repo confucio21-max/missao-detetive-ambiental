@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Missão Detetive Ambiental</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   CONFIGURAÇÃO DO GOOGLE FORMS — preencha para enviar respostas
+   (veja instruções no final deste arquivo)
+   ============================================================ */
+</style>
+<script>
+const CONFIG = {
+  // ID que aparece no link do formulário: docs.google.com/forms/d/e/ESTE_ID/viewform
+  formId: "1FAIpQLSdIdwp6n-KtbyJ1NhluV2x7fCAUxSWlpczfF14aw7s9MTgIjA",
+  // Link CSV da aba "Mapa" publicada na Web (Arquivo > Compartilhar > Publicar na Web > aba Mapa > CSV)
+  mapaCsv: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAC5Vh6fcZvNTNZARnzmevkUrajUYWcfMbDTjf6G306ZWZE7LBuWghGhjfr6s0mkDsD2WILDy6C9zN/pub?gid=865094035&single=true&output=csv",
+  // Números "entry.XXXXXXX" de cada pergunta do formulário
+  entries: {
+    raca: "2053434121",        // Como você se identifica?
+    beneficio: "410131712",   // Você ou alguém da sua família recebe algum benefício do governo?
+    idade: "748958675",       // Qual é a sua idade?
+    genero: "1403924212",      // Qual a sua identidade de gênero?
+    local: "894056418",       // Bairro e turma  (recebe "Bairro: X | Turma: Y")
+    conhece: "1259005502",     // Antes desta pesquisa, você já tinha ouvido falar em Racismo Ambiental?
+    problemas: "1300938080",   // Na região onde você mora, quais problemas ambientais estão presentes?
+    frequencia: "1507005119",  // Com que frequência esses problemas ambientais afetam...
+    poder: "516297335",       // Como você avalia a atuação do poder público?
+    medidas: "858847286"      // O que você considera mais importante para reduzir as desigualdades ambientais?
+  }
+};
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{
+  --forest:#0f3d2e; --forest-2:#164e3b; --leaf:#22a865; --leaf-soft:#d8f3e3;
+  --sun:#f5b82e; --sun-soft:#fdeec7; --river:#2a7fd4; --river-soft:#dcebfb;
+  --clay:#e0643c; --clay-soft:#fbe1d7;
+  --paper:#fbf6ec; --card:#ffffff; --ink:#1b2a24; --muted:#5d6b64; --line:#e7e0d1;
+  --r:20px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:Nunito,system-ui,sans-serif;color:var(--ink);background:var(--paper);
+  -webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+h1,h2,h3{font-family:"Bricolage Grotesque",Nunito,sans-serif;line-height:1.08;letter-spacing:-.01em}
+
+.app{max-width:560px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:16px 18px 28px}
+
+/* Top bar */
+.top{display:flex;align-items:center;gap:12px;min-height:44px}
+.back{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--card);border:1.5px solid var(--line);flex:none}
+.back[hidden]{visibility:hidden;display:grid}
+.bar{flex:1;height:12px;background:#ece4d3;border-radius:99px;overflow:hidden;position:relative}
+.bar>i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--leaf),#5fd08f);border-radius:99px;transition:width .5s cubic-bezier(.3,1.4,.5,1)}
+.xp{font-weight:800;font-size:14px;background:var(--sun-soft);color:#8a5a00;padding:7px 11px;border-radius:99px;white-space:nowrap;transition:transform .25s}
+.xp.pop{transform:scale(1.18)}
+
+.demo{margin-top:10px;font-size:13px;background:var(--clay-soft);color:#8a2f12;padding:8px 12px;border-radius:12px;text-align:center}
+
+.stage{flex:1;display:flex;flex-direction:column;padding-top:18px}
+.screen{animation:in .38s cubic-bezier(.2,.8,.3,1) both}
+@keyframes in{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+.screen.back-anim{animation-name:inb}
+@keyframes inb{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+
+.kicker{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--leaf)}
+.q{font-size:clamp(24px,6.4vw,30px);font-weight:800;margin:6px 0 6px;color:var(--forest)}
+.sub{color:var(--muted);font-size:15.5px;margin-bottom:18px}
+
+/* Option cards */
+.opts{display:grid;gap:10px}
+.opts.grid{grid-template-columns:1fr 1fr}
+.opt{display:flex;align-items:center;gap:14px;text-align:left;background:var(--card);border:2px solid var(--line);
+  border-radius:16px;padding:14px 16px;font-weight:700;font-size:16px;transition:border-color .15s,transform .12s,background .15s;min-height:62px}
+.opt:active{transform:scale(.98)}
+.opt .em{font-size:26px;line-height:1;flex:none;width:34px;text-align:center}
+.opt .tx small{display:block;font-weight:500;color:var(--muted);font-size:13.5px;margin-top:2px}
+.opt.sel{border-color:var(--leaf);background:var(--leaf-soft)}
+.opt .chk{margin-left:auto;width:24px;height:24px;border-radius:7px;border:2px solid var(--line);flex:none;display:grid;place-items:center;background:#fff}
+.opt.round .chk{border-radius:50%}
+.opt.sel .chk{background:var(--leaf);border-color:var(--leaf)}
+.opt.sel .chk::after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 3px 3px 0;transform:rotate(45deg) translate(-1px,-1px)}
+
+/* Picture cards (problems) */
+.pic{flex-direction:column;align-items:stretch;padding:0;overflow:hidden;gap:0;min-height:0}
+.pic svg{display:block;width:100%;height:auto;aspect-ratio:16/10}
+.pic .lbl{padding:10px 12px 12px;font-size:14.5px;line-height:1.25;display:flex;gap:8px;align-items:flex-start}
+.pic .lbl .chk{margin-left:auto}
+.pic.wide{grid-column:1/-1;flex-direction:row;align-items:center;padding:14px 16px;gap:14px}
+
+/* Scale (frequency) */
+.scale{display:grid;gap:8px}
+
+/* Inputs */
+.field{display:grid;gap:8px;margin-bottom:16px}
+.field label{font-weight:800;font-size:15px;color:var(--forest)}
+select,input[type=text]{width:100%;font:inherit;font-size:17px;padding:14px 16px;border-radius:14px;border:2px solid var(--line);background:#fff;color:var(--ink);appearance:none}
+select:focus,input:focus{outline:none;border-color:var(--leaf)}
+.selwrap{position:relative}
+.selwrap::after{content:"";position:absolute;right:18px;top:50%;width:9px;height:9px;border:solid var(--muted);border-width:0 2.5px 2.5px 0;transform:translateY(-70%) rotate(45deg);pointer-events:none}
+
+/* Buttons */
+.cta{margin-top:auto;padding-top:20px}
+.btn{width:100%;padding:17px 20px;border-radius:16px;font-weight:800;font-size:17.5px;background:var(--forest);color:#fff;
+  box-shadow:0 5px 0 #072619;transition:transform .1s,box-shadow .1s,opacity .2s}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 #072619}
+.btn:disabled{opacity:.35;pointer-events:none}
+.btn.sun{background:var(--sun);color:#3d2a00;box-shadow:0 5px 0 #c48d10}
+.btn.ghost{background:transparent;color:var(--forest);box-shadow:none;border:2px solid var(--line);margin-top:10px}
+.hint{text-align:center;color:var(--muted);font-size:13.5px;margin-top:10px}
+
+/* Intro */
+.hero{border-radius:26px;overflow:hidden;background:var(--forest);color:#fff;position:relative}
+.hero svg{display:block;width:100%;height:auto}
+.hero-body{padding:20px 22px 24px}
+.hero h1{font-size:clamp(32px,9vw,42px);font-weight:800}
+.hero h1 em{font-style:normal;color:var(--sun)}
+.hero p{opacity:.88;margin-top:10px;font-size:16px;line-height:1.45}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chip{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);padding:7px 12px;border-radius:99px;font-size:13.5px;font-weight:700}
+.privacy{font-size:13px;color:var(--muted);margin-top:14px;line-height:1.45;text-align:center}
+
+/* Fact card */
+.fact{background:var(--river-soft);border-radius:var(--r);padding:20px;margin-top:4px;border:2px solid #bcd8f6}
+.fact h3{color:#134a85;font-size:21px;margin-bottom:8px}
+.fact p{line-height:1.5;color:#1f3d5c;font-size:15.5px}
+.fact p+p{margin-top:8px}
+
+/* Badge toast */
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,140%);background:var(--forest);color:#fff;
+  padding:12px 18px;border-radius:16px;font-weight:800;display:flex;gap:10px;align-items:center;box-shadow:0 10px 30px rgba(15,61,46,.35);
+  transition:transform .45s cubic-bezier(.3,1.5,.5,1),opacity .3s;z-index:9;max-width:92vw;opacity:0;visibility:hidden}
+.toast.show{transform:translate(-50%,0);opacity:1;visibility:visible}
+.toast b{font-size:24px}
+
+/* Result */
+.result-head{text-align:center}
+.medal{width:120px;height:120px;margin:4px auto 10px;animation:spin 1s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes spin{from{transform:scale(.2) rotate(-200deg);opacity:0}to{transform:none;opacity:1}}
+.gauge{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:18px;margin:16px 0}
+.gauge h3{font-size:18px;color:var(--forest)}
+.meter{height:16px;border-radius:99px;background:linear-gradient(90deg,#3cc77a,#f5b82e 50%,#e0643c);position:relative;margin:16px 0 8px}
+.meter i{position:absolute;top:50%;width:26px;height:26px;border-radius:50%;background:#fff;border:4px solid var(--forest);transform:translate(-50%,-50%);left:0;transition:left 1.2s cubic-bezier(.2,1,.3,1) .3s}
+.meter-l{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);font-weight:700}
+.level{font-family:"Bricolage Grotesque",Nunito,sans-serif;font-weight:800;font-size:26px;margin-top:10px}
+.gauge p{color:var(--muted);font-size:15px;line-height:1.45;margin-top:4px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.tag{font-size:13px;font-weight:800;padding:6px 10px;border-radius:99px;background:var(--clay-soft);color:#8a2f12}
+.challenge{background:var(--sun-soft);border:2px dashed #e7b23f;border-radius:var(--r);padding:18px;margin-bottom:6px}
+.challenge h3{font-size:19px;color:#6b4300}
+.challenge p{color:#6b4a10;margin-top:6px;line-height:1.45;font-size:15px}
+.status{font-size:14px;font-weight:800;text-align:center;margin:6px 0 14px;padding:10px;border-radius:12px}
+.status.ok{background:var(--leaf-soft);color:#11633a}
+.status.wait{background:#eee8dc;color:var(--muted)}
+.status.err{background:var(--clay-soft);color:#8a2f12}
+
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:8}
+
+.sec{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:12px}
+.sec h3{font-size:18px;color:var(--forest);margin-bottom:4px}
+.sec .note{font-size:13px;color:var(--muted);margin-bottom:12px}
+.row{margin:10px 0}
+.row .lb{display:flex;justify-content:space-between;gap:10px;font-size:14px;font-weight:700;margin-bottom:5px}
+.row .lb span:last-child{color:var(--muted);white-space:nowrap}
+.track{height:12px;background:#efe9dc;border-radius:99px;overflow:hidden}
+.track i{display:block;height:100%;width:0;background:var(--leaf);border-radius:99px;transition:width .9s cubic-bezier(.2,1,.3,1)}
+.row.me .lb span:first-child::after{content:" ← você";color:var(--clay);font-weight:800}
+.row.me .track i{background:var(--clay)}
+.big{display:flex;gap:10px;margin-bottom:12px}
+.big div{flex:1;background:var(--forest);color:#fff;border-radius:16px;padding:14px}
+.big b{display:block;font-family:"Bricolage Grotesque",Nunito,sans-serif;font-size:30px;line-height:1}
+.big small{font-size:12.5px;opacity:.85}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.cmp div{background:var(--paper);border-radius:14px;padding:12px}
+.cmp b{font-family:"Bricolage Grotesque",Nunito,sans-serif;font-size:24px;color:var(--forest)}
+.cmp small{display:block;font-size:12.5px;color:var(--muted)}
+.you{background:var(--river-soft);border:2px solid #bcd8f6;border-radius:var(--r);padding:18px;margin-bottom:12px}
+.you h3{color:#134a85;font-size:18px;margin-bottom:6px}
+.you li{margin:8px 0 0 18px;color:#1f3d5c;line-height:1.4;font-size:15px}
+.mapbox{height:58vh;min-height:340px;border-radius:var(--r);overflow:hidden;border:2px solid var(--line);background:#e8efe9;position:relative;z-index:0}
+.filters{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+.filters button{flex:none;padding:8px 12px;border-radius:99px;border:2px solid var(--line);background:#fff;font-weight:800;font-size:13.5px}
+.filters button.on{background:var(--forest);border-color:var(--forest);color:#fff}
+.legend{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-weight:700}
+.legend i{flex:1;height:10px;border-radius:99px;background:linear-gradient(90deg,#3cc77a,#f5b82e,#e0643c)}
+.mapnote{font-size:13px;color:var(--muted);line-height:1.45;margin-top:8px}
+.leaflet-popup-content{font-family:Nunito,sans-serif;font-size:14px;margin:12px 14px}
+.leaflet-popup-content b.t{font-family:"Bricolage Grotesque",Nunito,sans-serif;font-size:16px;color:var(--forest);display:block;margin-bottom:4px}
+.leaflet-popup-content .pr{display:flex;justify-content:space-between;gap:12px}
+.ranking{margin-top:12px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top" id="top" style="display:none">
+    <button class="back" id="back" aria-label="Voltar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <div class="bar" role="progressbar" aria-label="Progresso"><i id="barfill"></i></div>
+    <div class="xp" id="xp">⭐ 0 XP</div>
+  </div>
+  <div id="demo"></div>
+  <main class="stage" id="stage"></main>
+</div>
+<div class="toast" id="toast" role="status"><b id="toastIcon">🏅</b><span id="toastText"></span></div>
+<canvas class="confetti" id="confetti"></canvas>
+<iframe name="gf_sink" id="gf_sink" style="display:none" title="envio"></iframe>
+
+<script>
+/* ---------- Ilustrações ---------- */
+const ART = {
+  enchente:`<svg viewBox="0 0 160 100"><rect width="160" height="100" fill="#cfe6fb"/><circle cx="130" cy="20" r="10" fill="#9fb6cc"/><path d="M0 30 Q20 18 40 28 T80 26 T120 30 T160 24 V0 H0Z" fill="#8aa3bb"/><rect x="30" y="38" width="38" height="34" fill="#f2d7b5"/><path d="M26 40 L49 22 L72 40Z" fill="#c4572f"/><rect x="44" y="52" width="10" height="20" fill="#7a4a2a"/><rect x="92" y="44" width="34" height="28" fill="#e9c79c"/><path d="M88 46 L109 30 L130 46Z" fill="#b14c27"/><path d="M0 64 Q20 58 40 64 T80 64 T120 64 T160 64 V100 H0Z" fill="#3b8fe0"/><path d="M0 74 Q20 68 40 74 T80 74 T120 74 T160 74" stroke="#bfe0ff" stroke-width="3" fill="none"/><g stroke="#5b86b0" stroke-width="2"><path d="M20 6 l-4 9M60 4 l-4 9M100 8 l-4 9M140 5 l-4 9M40 12 l-3 7M120 14 l-3 7"/></g></svg>`,
+  lixo:`<svg viewBox="0 0 160 100"><rect width="160" height="100" fill="#f6ead2"/><rect y="66" width="160" height="34" fill="#9b9488"/><path d="M0 70 H160" stroke="#fff" stroke-width="2" stroke-dasharray="12 10"/><path d="M8 66 Q30 34 60 46 Q80 30 100 50 Q90 66 8 66Z" fill="#5f8a4a"/><ellipse cx="44" cy="62" rx="10" ry="8" fill="#2f2f2f"/><ellipse cx="62" cy="60" rx="9" ry="9" fill="#4a5a7a"/><ellipse cx="30" cy="64" rx="8" ry="6" fill="#e3e3e3"/><rect x="72" y="56" width="10" height="8" rx="1" fill="#e46f9a"/><ellipse cx="88" cy="63" rx="9" ry="6" fill="#8bc3e8"/><rect x="50" y="64" width="16" height="4" fill="#b5835a"/><circle cx="80" cy="66" r="3" fill="#f5b82e"/><rect x="118" y="30" width="4" height="36" fill="#6b6255"/><circle cx="120" cy="26" r="12" fill="#3d8b52" opacity=".25"/><text x="132" y="48" font-size="18">🪰</text></svg>`,
+  agua:`<svg viewBox="0 0 160 100"><rect width="160" height="100" fill="#e3f0fa"/><rect x="20" y="70" width="120" height="30" fill="#c9b79c"/><rect x="66" y="18" width="10" height="34" fill="#8d9aa6"/><rect x="66" y="18" width="46" height="10" rx="4" fill="#8d9aa6"/><rect x="104" y="24" width="10" height="16" fill="#6f7c88"/><rect x="58" y="10" width="26" height="8" rx="4" fill="#c4572f"/><path d="M109 46 q-4 6 0 9 q4 -3 0 -9z" fill="#7fbcf2" opacity=".55"/><rect x="88" y="62" width="40" height="22" rx="4" fill="#f5b82e"/><ellipse cx="108" cy="62" rx="20" ry="4" fill="#d79a17"/><text x="18" y="50" font-size="22">🚱</text></svg>`,
+  esgoto:`<svg viewBox="0 0 160 100"><rect width="160" height="100" fill="#efe6d4"/><rect x="0" y="40" width="44" height="40" fill="#e6c89f"/><rect x="116" y="38" width="44" height="42" fill="#d9b88d"/><path d="M0 80 H160 V100 H0Z" fill="#a69a86"/><path d="M44 70 Q80 60 116 72 L116 86 Q80 78 44 86Z" fill="#6f7a3b"/><path d="M52 76 q8 -4 16 0 t16 0 t16 0" stroke="#9aa857" stroke-width="2.5" fill="none"/><rect x="38" y="58" width="16" height="6" fill="#7a7a7a"/><path d="M60 52 q4 -8 0 -14 M76 50 q4 -8 0 -14 M92 52 q4 -8 0 -14" stroke="#8b8f55" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>`
+};
+
+/* ---------- Perguntas (valores = texto exato do Google Forms) ---------- */
+const Q = [
+  { key:"problemas", type:"multi", layout:"pics", kicker:"Pista 1 · Investigação",
+    title:"O que você vê no seu bairro?", sub:"Toque em tudo o que existe perto da sua casa.",
+    options:[
+      {v:"Enchentes ou alagamentos frequentes.", label:"Enchentes ou alagamentos", art:"enchente"},
+      {v:"Acúmulo ou coleta irregular de lixo e falta de áreas verdes, praças ou espaços de lazer.", label:"Lixo acumulado / falta de praças", art:"lixo"},
+      {v:"Falta ou irregularidade no abastecimento de água.", label:"Falta d'água", art:"agua"},
+      {v:"Esgoto a céu aberto ou tratamento de esgoto insuficiente.", label:"Esgoto a céu aberto", art:"esgoto"},
+      {v:"Nenhum desses problemas", label:"Nenhum desses problemas", em:"✨", none:true, wide:true}
+    ]},
+  { key:"frequencia", type:"single", kicker:"Pista 2 · Impacto",
+    title:"Com que frequência isso afeta você ou seus vizinhos?", sub:"Escolha uma opção.",
+    options:[
+      {v:"Nunca.", label:"Nunca", em:"😌"},
+      {v:"Raramente.", label:"Raramente", em:"🙂"},
+      {v:"Às vezes.", label:"Às vezes", em:"😐"},
+      {v:"Frequentemente", label:"Frequentemente", em:"😟"},
+      {v:"Sempre ou quase sempre.", label:"Sempre ou quase sempre", em:"😫"},
+      {v:"Não sei responder.", label:"Não sei responder", em:"🤷"}
+    ]},
+  { key:"poder", type:"single", kicker:"Pista 3 · Quem resolve?",
+    title:"Quando acontece um problema, o poder público…", sub:"Prefeitura, governo, órgãos responsáveis.",
+    options:[
+      {v:"Atua rapidamente e resolve o problema de forma adequada.", label:"Resolve rápido e bem", em:"🦸"},
+      {v:"Atua, mas apenas parcialmente ou depois de muita cobrança da população.", label:"Resolve só em parte ou depois de muita cobrança", em:"📢"},
+      {v:"Atua somente em situações de grande repercussão.", label:"Só aparece quando vira notícia", em:"📺"},
+      {v:"Quase nunca atua ou demora excessivamente.", label:"Quase nunca aparece / demora demais", em:"🐌"},
+      {v:"Nunca procurei o poder público sobre esse tipo de problema.", label:"Nunca procurei", em:"🚪"},
+      {v:"Não sei avaliar.", label:"Não sei avaliar", em:"🤷"}
+    ]},
+  { key:"conhece", type:"single", kicker:"Pista 4 · Conhecimento",
+    title:"Você já tinha ouvido falar em racismo ambiental?", sub:"Sem resposta certa ou errada!",
+    options:[
+      {v:"Sim, conhecia o conceito e saberia explicá-lo.", label:"Sim, e saberia explicar", em:"🧠"},
+      {v:"Sim, já tinha ouvido falar, mas não sabia exatamente o que significava.", label:"Já ouvi, mas não sei bem o que é", em:"👂"},
+      {v:"Não, nunca tinha ouvido falar.", label:"Nunca ouvi falar", em:"🆕"},
+      {v:"Não tenho certeza.", label:"Não tenho certeza", em:"🤔"}
+    ],
+    fact:{title:"💡 Você sabia?", body:["<b>Racismo ambiental</b> é quando os problemas ambientais, como lixo, enchentes, esgoto e poluição, se concentram justamente nos bairros onde vivem mais pessoas negras, pardas, indígenas e de baixa renda.","Isso não acontece por acaso: tem a ver com onde o poder público decide investir (ou não) em saneamento, drenagem e áreas verdes."]}},
+  { key:"medidas", type:"single", kicker:"Pista 5 · Sua solução",
+    title:"Se você mandasse, o que faria primeiro?", sub:"O mais importante para reduzir as desigualdades ambientais.",
+    options:[
+      {v:"Investir na prevenção de enchentes, deslizamentos e outros riscos.", label:"Prevenir enchentes e riscos", em:"🌊"},
+      {v:"Fiscalizar empresas e atividades que causam poluição.", label:"Fiscalizar quem polui", em:"🏭"},
+      {v:"Ampliar áreas verdes, praças e espaços de lazer nas regiões periféricas.", label:"Mais praças e áreas verdes na periferia", em:"🌳"},
+      {v:"Garantir a participação dos moradores nas decisões ambientais.", label:"Moradores participando das decisões", em:"🗳️"},
+      {v:"Criar políticas públicas específicas para populações historicamente prejudicadas.", label:"Políticas para quem sempre foi prejudicado", em:"⚖️"},
+      {v:"Combinar todas essas medidas.", label:"Tudo isso junto", em:"🧩"},
+      {v:"Não sei responder.", label:"Não sei responder", em:"🤷"}
+    ]},
+  { key:"idade", type:"single", kicker:"Seu perfil · 1 de 4", title:"Qual é a sua idade?", sub:"Quase lá! Agora umas perguntas rápidas sobre você.",
+    options:[
+      {v:"Inferior a 15 anos", label:"Menos de 15 anos", em:"🧒"},
+      {v:"15 a 17 anos", label:"15 a 17 anos", em:"🧑"},
+      {v:"Superior a 17 anos", label:"18 anos ou mais", em:"🧑‍🎓"}
+    ]},
+  { key:"raca", type:"single", kicker:"Seu perfil · 2 de 4", title:"Como você se identifica?", sub:"Cor ou raça, como no IBGE.",
+    layout:"grid",
+    options:[
+      {v:"Negro", label:"Negro"},{v:"Pardo", label:"Pardo"},{v:"Branco", label:"Branco"},
+      {v:"Amarelo", label:"Amarelo"},{v:"Indígena", label:"Indígena"}
+    ]},
+  { key:"genero", type:"single", kicker:"Seu perfil · 3 de 4", title:"Qual a sua identidade de gênero?", sub:"",
+    options:[
+      {v:"Mulher cis", label:"Mulher cis"},{v:"Homem cis", label:"Homem cis"},
+      {v:"Mulher trans", label:"Mulher trans"},{v:"Homem trans", label:"Homem trans"},
+      {v:"Pessoa não binário", label:"Pessoa não binária"},{v:"Outro", label:"Outro"},
+      {v:"Prefiro não informar", label:"Prefiro não informar"}
+    ]},
+  { key:"beneficio", type:"single", kicker:"Seu perfil · 4 de 4", title:"Você ou alguém da sua família recebe algum benefício do governo?", sub:"Ex.: Bolsa Família, BPC, Pé-de-Meia.",
+    options:[
+      {v:"Sim", label:"Sim", em:"✅"},{v:"Não", label:"Não", em:"❌"},{v:"Não sei responder", label:"Não sei", em:"🤷"}
+    ]},
+  { key:"local", type:"local", kicker:"Última pista · Seu território",
+    title:"Onde fica sua base?", sub:"Só o bairro, sem endereço. E sua turma entra no placar!" }
+];
+
+const BAIRROS = ["40 Horas","Águas Brancas","Águas Lindas","Atalaia","Aurá","Centro (Ananindeua)","Cidade Nova","Coqueiro","Curuçambá","Distrito Industrial","Geraldo Palmeira","Guajará","Guanabara","Heliolândia","Icuí-Guajará","Icuí-Laranjeira","Jaderlândia","Júlia Seffer","Levilândia","Maguari","PAAR","Providência","Outro bairro de Ananindeua","Belém","Marituba","Outra cidade"];
+
+/* ---------- Respostas já coletadas (somente totais, sem CEP/endereço) ---------- */
+const DADOS = {"n": 61, "raca": {"Negro": 6, "Branco": 18, "Pardo": 37}, "beneficio": {"Não": 14, "Sim": 42, "Não sei responder": 5}, "idade": {"Superior a 17 anos": 7, "15 a 17 anos": 53, "Inferior a 15 anos": 1}, "conhece": {"Sim, conhecia o conceito e saberia explicá-lo.": 24, "Não, nunca tinha ouvido falar.": 4, "Sim, já tinha ouvido falar, mas não sabia exatamente o que significava.": 32, "Não tenho certeza.": 1}, "problemas": {"Nenhum desses problemas": 6, "Enchentes ou alagamentos frequentes.": 25, "Acúmulo ou coleta irregular de lixo e falta de áreas verdes, praças ou espaços de lazer.": 44, "Esgoto a céu aberto ou tratamento de esgoto insuficiente.": 13, "Falta ou irregularidade no abastecimento de água.": 5}, "frequencia": {"Raramente.": 8, "Sempre ou quase sempre.": 3, "Às vezes.": 27, "Frequentemente": 21, "Não sei responder.": 4}, "poder": {"Atua, mas apenas parcialmente ou depois de muita cobrança da população.": 22, "Quase nunca atua ou demora excessivamente.": 18, "Atua somente em situações de grande repercussão.": 13, "Nunca procurei o poder público sobre esse tipo de problema.": 4, "Não sei avaliar.": 7, "Atua rapidamente e resolve o problema de forma adequada.": 4}, "medidas": {"Criar políticas públicas específicas para populações historicamente prejudicadas.": 6, "Combinar todas essas medidas.": 33, "Investir na prevenção de enchentes, deslizamentos e outros riscos.": 3, "Fiscalizar empresas e atividades que causam poluição.": 10, "Não sei responder.": 2, "Ampliar áreas verdes, praças e espaços de lazer nas regiões periféricas.": 2, "Garantir a participação dos moradores nas decisões ambientais.": 5}, "grupos": {"Negros e pardos": {"n": 43, "media": 1.42, "freq": 35, "dois": 44}, "Brancos": {"n": 18, "media": 1.44, "freq": 50, "dois": 39}, "Recebem benefício": {"n": 42, "media": 1.55, "freq": 43, "dois": 48}, "Não recebem": {"n": 14, "media": 1.21, "freq": 36, "dois": 36}}};
+
+/* ---------- Mapa: respostas antigas por bairro + coordenadas ---------- */
+const MAPA_ANTIGO = {"40 Horas": {"n": 11, "enchente": 8, "lixo": 6, "agua": 0, "esgoto": 2, "nenhum": 2, "freq": 3}, "Maguari": {"n": 3, "enchente": 3, "lixo": 3, "agua": 1, "esgoto": 0, "nenhum": 0, "freq": 3}, "Cidade Nova": {"n": 13, "enchente": 2, "lixo": 11, "agua": 0, "esgoto": 2, "nenhum": 2, "freq": 3}, "Icuí-Guajará": {"n": 14, "enchente": 4, "lixo": 12, "agua": 1, "esgoto": 6, "nenhum": 0, "freq": 9}, "Distrito Industrial": {"n": 1, "enchente": 0, "lixo": 1, "agua": 0, "esgoto": 0, "nenhum": 0, "freq": 1}, "Icuí-Laranjeira": {"n": 2, "enchente": 1, "lixo": 1, "agua": 0, "esgoto": 0, "nenhum": 0, "freq": 1}, "Belém": {"n": 4, "enchente": 1, "lixo": 2, "agua": 1, "esgoto": 0, "nenhum": 1, "freq": 2}, "Centro (Ananindeua)": {"n": 6, "enchente": 3, "lixo": 3, "agua": 0, "esgoto": 1, "nenhum": 0, "freq": 1}, "Guanabara": {"n": 2, "enchente": 1, "lixo": 1, "agua": 1, "esgoto": 0, "nenhum": 0, "freq": 0}, "Curuçambá": {"n": 1, "enchente": 1, "lixo": 1, "agua": 0, "esgoto": 1, "nenhum": 0, "freq": 0}, "PAAR": {"n": 1, "enchente": 0, "lixo": 0, "agua": 0, "esgoto": 0, "nenhum": 1, "freq": 0}, "Águas Lindas": {"n": 1, "enchente": 0, "lixo": 1, "agua": 0, "esgoto": 0, "nenhum": 0, "freq": 0}, "Coqueiro": {"n": 1, "enchente": 1, "lixo": 1, "agua": 1, "esgoto": 1, "nenhum": 0, "freq": 1}};
+const COORD = {"40 Horas": [-1.3562, -48.4222], "Águas Brancas": [-1.3911, -48.3724], "Águas Lindas": [-1.3891, -48.3957], "Atalaia": [-1.3953, -48.4271], "Aurá": [-1.3802, -48.3677], "Centro (Ananindeua)": [-1.366, -48.3752], "Cidade Nova": [-1.3582, -48.4028], "Coqueiro": [-1.3698, -48.4165], "Curuçambá": [-1.3227, -48.3798], "Distrito Industrial": [-1.3337, -48.3485], "Geraldo Palmeira": [-1.3578, -48.3601], "Guajará": [-1.3525, -48.3894], "Guanabara": [-1.394, -48.4137], "Heliolândia": [-1.3412, -48.3638], "Icuí-Guajará": [-1.3344, -48.4026], "Icuí-Laranjeira": [-1.3212, -48.4136], "Jaderlândia": [-1.3846, -48.4253], "Júlia Seffer": [-1.3856, -48.388], "Levilândia": [-1.3776, -48.4016], "Maguari": [-1.3387, -48.3968], "PAAR": [-1.3388, -48.3864], "Providência": [-1.3754, -48.4011], "Belém": [-1.4506, -48.4682], "Marituba": [-1.3595, -48.3362]};
+
+/* ---------- Estado ---------- */
+const S = { i:-1, a:{}, xp:0, badges:new Set(), bairro:"", turma:"" };
+const XP_PER = 10;
+const stage = document.getElementById("stage");
+const configured = !!(CONFIG.formId && Object.values(CONFIG.entries).every(Boolean));
+
+function store(k,v){ try{ v===undefined?localStorage.removeItem(k):localStorage.setItem(k,v);}catch(e){} }
+function load(k){ try{ return localStorage.getItem(k);}catch(e){ return null; } }
+
+if(!configured){
+  document.getElementById("demo").innerHTML = '<div class="demo">🧪 Modo teste: as respostas ainda não são enviadas para o Google Forms.</div>';
+}
+
+/* ---------- Render ---------- */
+function setTop(){
+  document.getElementById("top").style.display = !S.panel && !S.map && S.i>=0 && S.i<Q.length ? "flex" : "none";
+  document.getElementById("back").hidden = S.i<=0;
+  const pct = S.i<0 ? 0 : Math.min(100, (S.i)/Q.length*100);
+  document.getElementById("barfill").style.width = pct+"%";
+  document.getElementById("xp").textContent = "⭐ "+S.xp+" XP";
+}
+
+function render(dir){
+  setTop();
+  stage.innerHTML = "";
+  const el = document.createElement("section");
+  el.className = "screen"+(dir<0?" back-anim":"");
+  if(S.map) el.innerHTML = mapHTML();
+  else if(S.panel) el.innerHTML = panelHTML();
+  else if(S.i<0) el.innerHTML = introHTML();
+  else if(S.i>=Q.length) el.innerHTML = resultHTML();
+  else el.innerHTML = qHTML(Q[S.i]);
+  stage.appendChild(el);
+  bind(el);
+  window.scrollTo({top:0});
+}
+
+function introHTML(){
+  const done = load("rac_amb_done");
+  return `
+  <div class="hero">
+    <svg viewBox="0 0 400 170" aria-hidden="true">
+      <rect width="400" height="170" fill="#164e3b"/>
+      <circle cx="320" cy="48" r="26" fill="#f5b82e"/>
+      <path d="M0 110 Q60 70 120 96 T240 92 T400 84 V170 H0Z" fill="#22a865"/>
+      <path d="M0 130 Q80 108 160 126 T320 122 T400 118 V170 H0Z" fill="#0f3d2e"/>
+      <g fill="#0b2e22"><rect x="40" y="88" width="34" height="30"/><path d="M36 90 L57 72 L78 90Z"/><rect x="94" y="80" width="40" height="38"/><path d="M90 82 L114 62 L138 82Z"/></g>
+      <g transform="translate(250 92)"><circle r="30" fill="none" stroke="#fff" stroke-width="7"/><circle r="30" fill="#ffffff22"/><path d="M21 21 L46 46" stroke="#fff" stroke-width="10" stroke-linecap="round"/><path d="M-12 -6 q8 -14 22 -8" stroke="#ffffffaa" stroke-width="4" fill="none" stroke-linecap="round"/></g>
+      <path d="M150 140 q30 -10 60 0 t60 0 t60 0" stroke="#2a7fd4" stroke-width="6" fill="none" stroke-linecap="round" opacity=".9"/>
+    </svg>
+    <div class="hero-body">
+      <h1>Missão <em>Detetive Ambiental</em></h1>
+      <p>Investigue o seu bairro, ganhe XP e descubra o <b>Raio-X Ambiental</b> da sua região. Sua turma pode ganhar o placar da escola!</p>
+      <div class="chips"><span class="chip">⏱️ 2 minutos</span><span class="chip">🔎 10 pistas</span><span class="chip">🏆 Placar por turma</span></div>
+    </div>
+  </div>
+  ${done?'<p class="hint" style="margin-top:14px">👀 Parece que você já completou a missão neste aparelho. Se for outra pessoa, pode jogar normalmente.</p>':''}
+  <div class="cta"><button class="btn sun" data-act="start">Começar missão →</button>
+  <button class="btn ghost" data-act="panel">📊 Ver resultados até agora (${DADOS.n} detetives)</button>
+  <button class="btn ghost" data-act="map">🗺️ Mapa dos problemas por bairro</button>
+  <p class="privacy">🔒 Anônimo: não pedimos nome, e-mail nem endereço. As respostas são usadas só para fins educacionais e científicos.</p></div>`;
+}
+
+function optHTML(q,o,idx){
+  const sel = q.type==="multi" ? (S.a[q.key]||[]).includes(o.v) : S.a[q.key]===o.v;
+  const chk = `<span class="chk"></span>`;
+  if(q.layout==="pics" && o.art){
+    return `<button class="opt pic${sel?' sel':''}" data-i="${idx}" aria-pressed="${sel}">${ART[o.art]}<span class="lbl"><span>${o.label}</span>${chk}</span></button>`;
+  }
+  const wide = o.wide?' pic wide':'';
+  return `<button class="opt${q.type==='single'?' round':''}${wide}${sel?' sel':''}" data-i="${idx}" aria-pressed="${sel}">${o.em?`<span class="em">${o.em}</span>`:''}<span class="tx">${o.label}</span>${chk}</button>`;
+}
+
+function qHTML(q){
+  if(q.type==="local") return localHTML(q);
+  const grid = (q.layout==="pics"||q.layout==="grid")?" grid":"";
+  const answered = q.type==="multi" ? (S.a[q.key]||[]).length>0 : !!S.a[q.key];
+  return `<div class="kicker">${q.kicker}</div><h2 class="q">${q.title}</h2>${q.sub?`<p class="sub">${q.sub}</p>`:'<div style="height:12px"></div>'}
+  <div class="opts${grid}">${q.options.map((o,i)=>optHTML(q,o,i)).join("")}</div>
+  <div id="factslot"></div>
+  ${q.type==="multi"?`<div class="cta"><button class="btn" data-act="next" ${answered?'':'disabled'}>Confirmar pista →</button></div>`:''}`;
+}
+
+function localHTML(q){
+  const opts = BAIRROS.map(b=>`<option ${S.bairro===b?'selected':''}>${b}</option>`).join("");
+  return `<div class="kicker">${q.kicker}</div><h2 class="q">${q.title}</h2><p class="sub">${q.sub}</p>
+  <div class="field"><label for="bairro">Seu bairro</label><div class="selwrap"><select id="bairro"><option value="">Escolha…</option>${opts}</select></div></div>
+  <div class="field"><label for="turma">Sua turma</label><input type="text" id="turma" maxlength="12" placeholder="Ex.: 1º A, 9º B" value="${S.turma.replace(/"/g,'')}"></div>
+  <div class="cta"><button class="btn sun" data-act="finish" ${S.bairro&&S.turma.trim()?'':'disabled'}>Revelar meu Raio-X 🔍</button></div>`;
+}
+
+/* ---------- Pontuação / resultado ---------- */
+function score(){
+  const probs = (S.a.problemas||[]).filter(v=>v!=="Nenhum desses problemas");
+  const fw = {"Nunca.":0,"Raramente.":8,"Às vezes.":18,"Frequentemente":28,"Sempre ou quase sempre.":36,"Não sei responder.":12}[S.a.frequencia]||0;
+  return {probs, value:Math.min(100, probs.length*16 + fw)};
+}
+const SHORT = {"Enchentes ou alagamentos frequentes.":"🌊 Alagamentos","Acúmulo ou coleta irregular de lixo e falta de áreas verdes, praças ou espaços de lazer.":"🗑️ Lixo / sem praças","Falta ou irregularidade no abastecimento de água.":"🚱 Falta d'água","Esgoto a céu aberto ou tratamento de esgoto insuficiente.":"🦠 Esgoto aberto"};
+
+function resultHTML(){
+  const {probs,value} = score();
+  let lvl, color, msg;
+  if(value<30){ lvl="Risco baixo"; color="#1d8a52"; msg="Boa notícia: seu bairro parece ter poucos problemas ambientais. Mas será que é assim para toda a cidade? Compare com seus colegas!"; }
+  else if(value<60){ lvl="Risco moderado"; color="#b07a00"; msg="Seu bairro tem problemas que aparecem com alguma frequência. Esses dados ajudam a mostrar onde o investimento público precisa chegar."; }
+  else { lvl="Risco alto"; color="#c0461f"; msg="Seu bairro enfrenta vários problemas ambientais com frequência. É exatamente esse tipo de desigualdade que a pesquisa quer tornar visível."; }
+  return `
+  <div class="result-head">
+    <svg class="medal" viewBox="0 0 120 120"><path d="M40 6 L60 44 L80 6 Z" fill="#2a7fd4"/><path d="M48 6 L60 30 L72 6" fill="#22a865"/><circle cx="60" cy="72" r="40" fill="#f5b82e"/><circle cx="60" cy="72" r="31" fill="#fdd56b"/><text x="60" y="84" text-anchor="middle" font-size="34">🔎</text></svg>
+    <div class="kicker">Missão cumprida · +${S.xp} XP</div>
+    <h2 class="q">Você é um(a) Detetive Ambiental!</h2>
+  </div>
+  <div id="sendStatus">${S.st||""}</div>
+  <div class="gauge">
+    <h3>Raio-X Ambiental · ${escapeHTML(S.bairro)}</h3>
+    <div class="meter"><i id="needle"></i></div>
+    <div class="meter-l"><span>Baixo</span><span>Moderado</span><span>Alto</span></div>
+    <div class="level" style="color:${color}">${lvl}</div>
+    <p>${msg}</p>
+    ${probs.length?`<div class="tags">${probs.map(p=>`<span class="tag">${SHORT[p]||p}</span>`).join("")}</div>`:''}
+  </div>
+  ${youHTML()}
+  <div class="challenge">
+    <h3>🏆 Desafio da turma ${escapeHTML(S.turma)}</h3>
+    <p>Chame mais 3 colegas da sua turma para completar a missão. A turma com mais participação ganha o placar da escola!</p>
+  </div>
+  <div class="cta" style="padding-top:12px"><button class="btn sun" data-act="panel" style="margin-bottom:12px">📊 Ver o painel da pesquisa</button><button class="btn ghost" data-act="map" style="margin:0 0 12px">🗺️ Ver seu bairro no mapa</button><button class="btn" data-act="copy">📋 Copiar link para os colegas</button>
+  <button class="btn ghost" data-act="again">Outra pessoa vai responder neste aparelho</button></div>`;
+}
+/* ---------- Você e seus colegas / Painel ---------- */
+function labelFor(key,v){ const q=Q.find(q=>q.key===key); const o=q&&q.options&&q.options.find(o=>o.v===v); return o?o.label:v; }
+function pct(c,n){ return Math.round(100*c/n); }
+function mine(key,v){ const a=S.a[key]; return S.finished && (Array.isArray(a)?a.includes(v):a===v); }
+function withMe(){
+  const d=JSON.parse(JSON.stringify(DADOS));
+  if(!S.finished) return d;
+  d.n++;
+  ["raca","beneficio","idade","conhece","frequencia","poder","medidas"].forEach(k=>{ const v=S.a[k]; if(v) d[k][v]=(d[k][v]||0)+1; });
+  (S.a.problemas||[]).forEach(v=>d.problemas[v]=(d.problemas[v]||0)+1);
+  return d;
+}
+function bars(key,d,sort){
+  const q=Q.find(q=>q.key===key);
+  let rows=q.options.map(o=>({v:o.v,label:o.label,c:d[key][o.v]||0})).filter(r=>r.c>0);
+  if(sort) rows.sort((a,b)=>b.c-a.c);
+  return rows.map(r=>`<div class="row${mine(key,r.v)?' me':''}"><div class="lb"><span>${r.label}</span><span>${pct(r.c,d.n)}% · ${r.c}</span></div><div class="track"><i data-w="${pct(r.c,d.n)}"></i></div></div>`).join("");
+}
+function youHTML(){
+  const D=DADOS, n=D.n, li=[];
+  const probs=(S.a.problemas||[]);
+  if(probs.includes("Nenhum desses problemas")) li.push(`Só <b>${pct(D.problemas["Nenhum desses problemas"]||0,n)}%</b> dos colegas também disseram que não há nenhum desses problemas no bairro.`);
+  else probs.forEach(p=>li.push(`<b>${pct(D.problemas[p]||0,n)}%</b> dos colegas também apontaram <b>${labelFor("problemas",p).toLowerCase()}</b>.`));
+  if(S.a.poder) li.push(`<b>${pct(D.poder[S.a.poder]||0,n)}%</b> pensam como você sobre o poder público: “${labelFor("poder",S.a.poder).toLowerCase()}”.`);
+  if(S.a.medidas) li.push(`<b>${pct(D.medidas[S.a.medidas]||0,n)}%</b> escolheram a mesma solução que você.`);
+  return `<div class="you"><h3>👥 Você e os outros ${n} detetives</h3><ul>${li.map(x=>`<li>${x}</li>`).join("")}</ul></div>`;
+}
+function panelHTML(){
+  const d=withMe(), G=DADOS.grupos;
+  const algum=d.n-(d.problemas["Nenhum desses problemas"]||0);
+  const resolve=d.poder["Atua rapidamente e resolve o problema de forma adequada."]||0;
+  const g=(a,b,titulo)=>`<div class="cmp"><div><small>${a}</small><b>${G[a].media.toLocaleString("pt-BR")}</b><small>problemas em média · ${G[a].n} alunos</small></div><div><small>${b}</small><b>${G[b].media.toLocaleString("pt-BR")}</b><small>problemas em média · ${G[b].n} alunos</small></div></div>`;
+  return `
+  <div class="kicker">Painel da pesquisa</div>
+  <h2 class="q">O que os detetives já descobriram</h2>
+  <p class="sub">${S.finished?`Inclui a sua resposta: você é o detetive nº ${d.n}!`:`Respostas da 1ª rodada da pesquisa.`}</p>
+  <div class="big">
+    <div><b>${d.n}</b><small>detetives participaram</small></div>
+    <div><b>${pct(algum,d.n)}%</b><small>veem pelo menos um problema no bairro</small></div>
+    <div><b>${resolve}</b><small>acham que o poder público resolve rápido</small></div>
+  </div>
+  <div class="sec"><h3>🔎 O que existe nos bairros</h3><p class="note">Cada pessoa podia marcar mais de um.</p>${bars("problemas",d,true)}</div>
+  <div class="sec"><h3>⏱️ Com que frequência afeta</h3>${bars("frequencia",d,false)}</div>
+  <div class="sec"><h3>🏛️ Quando há um problema, o poder público…</h3><p class="note">Algumas pessoas marcaram mais de uma opção.</p>${bars("poder",d,true)}</div>
+  <div class="sec"><h3>⚖️ Quem é mais afetado?</h3>
+    <p class="note">Média de problemas ambientais apontados por grupo, na 1ª rodada.</p>
+    ${g("Recebem benefício","Não recebem")}
+    ${g("Negros e pardos","Brancos")}
+    <p class="note" style="margin:12px 0 0">Atenção, detetive: a amostra ainda é pequena e veio quase toda de uma turma. Por isso essas diferenças ainda não provam nada. Com mais respostas de toda a escola, o retrato fica confiável.</p>
+  </div>
+  <div class="sec"><h3>🛠️ O que fazer primeiro</h3>${bars("medidas",d,true)}</div>
+  <div class="sec"><h3>🧠 Já conheciam racismo ambiental?</h3>${bars("conhece",d,false)}</div>
+  <div class="sec"><h3>🧑‍🤝‍🧑 Quem respondeu</h3>${bars("idade",d,false)}${bars("raca",d,true)}${bars("beneficio",d,false)}
+    <p class="note" style="margin:12px 0 0">🚨 Faltam os mais novos: quase ninguém com menos de 15 anos respondeu ainda!</p></div>
+  <button class="btn ghost" data-act="map" style="margin-bottom:14px">🗺️ Ver o mapa por bairro</button>
+  <div class="cta">${S.finished?`<button class="btn" data-act="closepanel">← Voltar ao meu resultado</button>`:`<button class="btn sun" data-act="start">Começar minha missão →</button><button class="btn ghost" data-act="closepanel">← Voltar</button>`}</div>`;
+}
+/* ---------- Mapa ---------- */
+const PROB = {todos:"Todos os problemas", enchente:"🌊 Alagamento", lixo:"🗑️ Lixo / praças", esgoto:"🦠 Esgoto", agua:"🚱 Falta d'água"};
+let MAPA_NOVO = null, mapaFiltro = "todos", lmap = null, lcamada = null;
+function mapaDados(){
+  const t = JSON.parse(JSON.stringify(MAPA_ANTIGO));
+  const somar=(b,o)=>{ const a=t[b]||(t[b]={n:0,enchente:0,lixo:0,agua:0,esgoto:0,nenhum:0,freq:0}); for(const k in a) a[k]+=(+o[k]||0); };
+  if(MAPA_NOVO) MAPA_NOVO.forEach(r=>somar(r.bairro,r));
+  else if(S.finished && S.bairro){ const p=S.a.problemas||[]; somar(S.bairro,{n:1,enchente:p.some(v=>/Enchentes/.test(v)),lixo:p.some(v=>/lixo/.test(v)),agua:p.some(v=>/abastecimento/.test(v)),esgoto:p.some(v=>/Esgoto/.test(v)),nenhum:p.some(v=>/Nenhum/.test(v)),freq:/Frequentemente|Sempre/.test(S.a.frequencia||"")}); }
+  return t;
+}
+function parseCSV(txt){
+  const lines=txt.trim().split(/\r?\n/).map(l=>l.split(",").map(c=>c.replace(/^"|"$/g,"").trim()));
+  const h=lines.shift(); return lines.filter(l=>l[0]).map(l=>Object.fromEntries(h.map((k,i)=>[k,i?+l[i]||0:l[i]])));
+}
+async function carregarMapaNovo(){
+  if(!CONFIG.mapaCsv || MAPA_NOVO) return;
+  try{ const r=await fetch(CONFIG.mapaCsv+(CONFIG.mapaCsv.includes("?")?"&":"?")+"t="+Date.now()); MAPA_NOVO=parseCSV(await r.text()); }catch(e){ MAPA_NOVO=null; }
+}
+function cor(v){ // v de 0 a 1
+  const s=[[60,199,122],[245,184,46],[224,100,60]]; const x=Math.max(0,Math.min(1,v))*2, i=Math.min(1,Math.floor(x)), f=x-i;
+  const c=s[i].map((a,j)=>Math.round(a+(s[i+1][j]-a)*f)); return `rgb(${c})`;
+}
+function mapHTML(){
+  return `<div class="kicker">Mapa da investigação</div>
+  <h2 class="q">Onde estão os problemas?</h2>
+  <p class="sub">Cada círculo é um bairro: quanto maior, mais detetives responderam. Toque para ver os detalhes.</p>
+  <div class="filters">${Object.entries(PROB).map(([k,v])=>`<button data-f="${k}" class="${k===mapaFiltro?'on':''}">${v}</button>`).join("")}</div>
+  <div class="mapbox" id="lmap"></div>
+  <div class="legend"><span id="legA">0</span><i></i><span id="legB">4 problemas</span></div>
+  <p class="mapnote" id="mapnote"></p>
+  <div class="sec ranking"><h3 id="rankT">Bairros com mais problemas</h3><div id="rank"></div></div>
+  <p class="mapnote">🔒 O mapa mostra só totais por bairro, nunca endereços. Bairros com menos de 3 respostas aparecem sem detalhes, para ninguém ser identificado.</p>
+  <div class="cta"><button class="btn" data-act="closemap">← Voltar</button></div>`;
+}
+function valorBairro(a){
+  if(mapaFiltro==="todos") return (a.enchente+a.lixo+a.agua+a.esgoto)/a.n/4*2; // média de problemas (0–2+) normalizada
+  return a[mapaFiltro]/a.n;
+}
+function desenhar(){
+  const t=mapaDados(); const L=window.L;
+  if(lcamada) lcamada.remove();
+  lcamada=L.layerGroup().addTo(lmap);
+  let semLocal=0, total=0; const rows=[];
+  for(const [b,a] of Object.entries(t)){
+    total+=a.n;
+    if(!COORD[b]){ semLocal+=a.n; continue; }
+    const v=valorBairro(a), poucos=a.n<3;
+    const media=((a.enchente+a.lixo+a.agua+a.esgoto)/a.n);
+    const pc=k=>Math.round(100*a[k]/a.n)+"%";
+    const det = poucos ? `<span style="color:#5d6b64">Poucas respostas ainda: detalhes aparecem a partir de 3.</span>` :
+      `<div class="pr"><span>🌊 Alagamento</span><b>${pc("enchente")}</b></div><div class="pr"><span>🗑️ Lixo / praças</span><b>${pc("lixo")}</b></div><div class="pr"><span>🦠 Esgoto</span><b>${pc("esgoto")}</b></div><div class="pr"><span>🚱 Falta d'água</span><b>${pc("agua")}</b></div><div class="pr" style="margin-top:4px"><span>Afeta com frequência</span><b>${pc("freq")}</b></div>`;
+    const isMe = S.finished && S.bairro===b;
+    L.circleMarker(COORD[b],{radius:8+Math.sqrt(a.n)*5,color:isMe?"#0f3d2e":"#fff",weight:isMe?4:2,fillColor:poucos?"#9aa7a0":cor(v),fillOpacity:.85})
+      .bindPopup(`<b class="t">${escapeHTML(b)}${isMe?" · seu bairro":""}</b>${a.n} resposta${a.n>1?"s":""}<div style="margin-top:6px">${det}</div>`).addTo(lcamada);
+    if(!poucos) rows.push({b,a,v,media});
+  }
+  rows.sort((x,y)=>y.v-x.v);
+  const lbl = mapaFiltro==="todos" ? "problemas por pessoa (média)" : "% que apontam "+PROB[mapaFiltro].replace(/^\S+ /,"").toLowerCase();
+  document.getElementById("rankT").textContent = mapaFiltro==="todos" ? "Bairros com mais problemas" : "Onde mais aparece: "+PROB[mapaFiltro].replace(/^\S+ /,"");
+  document.getElementById("rank").innerHTML = rows.slice(0,6).map(r=>{ const w=mapaFiltro==="todos"?Math.round(r.media/4*100):Math.round(r.v*100);
+    return `<div class="row${S.finished&&S.bairro===r.b?' me':''}"><div class="lb"><span>${escapeHTML(r.b)}</span><span>${mapaFiltro==="todos"?r.media.toFixed(1).replace(".",","):w+"%"} · ${r.a.n} resp.</span></div><div class="track"><i data-w="${w}" style="width:${w}%"></i></div></div>`; }).join("") + `<p class="note" style="margin-top:8px">Medida: ${lbl}. Só bairros com 3 ou mais respostas.</p>`;
+  document.getElementById("legA").textContent = mapaFiltro==="todos"?"0":"0%";
+  document.getElementById("legB").textContent = mapaFiltro==="todos"?"2+ problemas":"100%";
+  document.getElementById("mapnote").textContent = `${total} respostas no mapa${MAPA_NOVO?" (1ª rodada + respostas novas, atualizado agora)":" (1ª rodada da pesquisa"+(S.finished?" + a sua)":")")}${semLocal?` · ${semLocal} sem bairro no mapa`:""}.`;
+}
+async function initMap(el){
+  el.querySelectorAll(".filters button").forEach(b=>b.addEventListener("click",()=>{ mapaFiltro=b.dataset.f; el.querySelectorAll(".filters button").forEach(x=>x.classList.toggle("on",x===b)); desenhar(); }));
+  if(!window.L){ document.getElementById("lmap").innerHTML='<p style="padding:20px;color:#5d6b64">Não foi possível carregar o mapa. Verifique a internet.</p>'; return; }
+  if(lmap){ lmap.remove(); lmap=null; }
+  lmap=L.map("lmap",{zoomControl:true,attributionControl:true}).setView([-1.37,-48.40],12);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap"}).addTo(lmap);
+  desenhar();
+  try{ lmap.fitBounds(L.featureGroup(lcamada.getLayers()).getBounds().pad(0.15)); }catch(e){}
+  await carregarMapaNovo();
+  if(MAPA_NOVO && lmap) desenhar();
+}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+
+/* ---------- Interação ---------- */
+function bind(el){
+  el.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>act(b.dataset.act)));
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.querySelectorAll(".track i").forEach(i=>i.style.width=i.dataset.w+"%")));
+  if(S.map){ initMap(el); return; }
+  if(S.panel) return;
+  const q = Q[S.i];
+  if(q && q.options){
+    el.querySelectorAll(".opt").forEach(b=>b.addEventListener("click",()=>pick(q,+b.dataset.i,el)));
+  }
+  if(q && q.type==="local"){
+    const sel = el.querySelector("#bairro"), inp = el.querySelector("#turma"), btn = el.querySelector("[data-act=finish]");
+    const upd=()=>{ S.bairro=sel.value; S.turma=inp.value; btn.disabled=!(S.bairro&&S.turma.trim()); };
+    sel.addEventListener("change",upd); inp.addEventListener("input",upd);
+  }
+  if(S.i>=Q.length){
+    requestAnimationFrame(()=>{ const n=document.getElementById("needle"); if(n) n.style.left=score().value+"%"; });
+  }
+}
+
+function pick(q,idx,el){
+  const o = q.options[idx];
+  if(q.type==="multi"){
+    let cur = S.a[q.key]||[];
+    if(o.none) cur = cur.includes(o.v)?[]:[o.v];
+    else { cur = cur.filter(v=>v!=="Nenhum desses problemas"); cur = cur.includes(o.v)?cur.filter(v=>v!==o.v):[...cur,o.v]; }
+    S.a[q.key]=cur;
+    el.querySelectorAll(".opt").forEach((b,i)=>{ const s=cur.includes(q.options[i].v); b.classList.toggle("sel",s); b.setAttribute("aria-pressed",s); });
+    el.querySelector("[data-act=next]").disabled = cur.length===0;
+    return;
+  }
+  const first = !S.a[q.key];
+  S.a[q.key]=o.v;
+  el.querySelectorAll(".opt").forEach((b,i)=>{ const s=i===idx; b.classList.toggle("sel",s); b.setAttribute("aria-pressed",s); });
+  if(q.fact && first){
+    gain();
+    const slot = el.querySelector("#factslot");
+    slot.innerHTML = `<div class="fact screen" style="margin-top:16px"><h3>${q.fact.title}</h3>${q.fact.body.map(p=>`<p>${p}</p>`).join("")}</div><div class="cta"><button class="btn" data-act="go">Entendi, próxima pista →</button></div>`;
+    slot.querySelector("[data-act=go]").addEventListener("click",()=>advance(false));
+    badge("🧠","Conquista: Mente Afiada");
+    setTimeout(()=>slot.scrollIntoView({behavior:"smooth",block:"start"}),80);
+    return;
+  }
+  if(q.fact) return;
+  setTimeout(()=>advance(first),260);
+}
+
+function gain(){ S.xp+=XP_PER; const x=document.getElementById("xp"); x.textContent="⭐ "+S.xp+" XP"; x.classList.add("pop"); setTimeout(()=>x.classList.remove("pop"),250); }
+
+function advance(addXp=true){
+  if(addXp) gain();
+  S.i++;
+  if(S.i===1) badge("🔎","Conquista: Primeira Pista!");
+  if(S.i===5) badge("🌱","Metade da missão! Falta pouco");
+  render(1);
+}
+
+function act(a){
+  if(a==="start"){ S.panel=false; S.map=false; S.i=0; render(1); }
+  else if(a==="panel"){ S.map=false; S.panel=true; render(1); }
+  else if(a==="map"){ S.map=true; render(1); }
+  else if(a==="closemap"){ S.map=false; render(-1); }
+  else if(a==="closepanel"){ S.panel=false; render(-1); }
+  else if(a==="next"){ const k=Q[S.i].key, f=!S.badges.has(k); S.badges.add(k); advance(f); }
+  else if(a==="finish"){ S.finished=true; gain(); S.i=Q.length; render(1); submit(); confetti(); store("rac_amb_done","1"); }
+  else if(a==="copy"){
+    const url = location.href.split("#")[0];
+    navigator.clipboard.writeText(url).then(()=>badge("📋","Link copiado! Mande no grupo da turma")).catch(()=>badge("🔗","Copie o link da barra do navegador"));
+  }
+  else if(a==="again"){ S.finished=false; S.i=-1; S.a={}; S.xp=0; S.bairro=""; S.turma=""; S.badges.clear(); render(-1); }
+}
+
+document.getElementById("back").addEventListener("click",()=>{ if(S.i>0){ S.i--; render(-1);} });
+
+let toastT;
+function badge(icon,text){
+  const t=document.getElementById("toast");
+  document.getElementById("toastIcon").textContent=icon; document.getElementById("toastText").textContent=text;
+  t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2200);
+}
+
+/* ---------- Envio para o Google Forms ---------- */
+function setSt(h){ S.st=h; const e=document.getElementById("sendStatus"); if(e) e.innerHTML=h; }
+function submit(){
+  const st = {set innerHTML(h){ setSt(h); }};
+  if(!configured){ st.innerHTML='<div class="status wait">🧪 Modo teste: resposta não enviada.</div>'; return; }
+  st.innerHTML='<div class="status wait">⏳ Enviando sua investigação…</div>';
+  const f = document.createElement("form");
+  f.method="POST"; f.target="gf_sink";
+  f.action=`https://docs.google.com/forms/d/e/${CONFIG.formId}/formResponse`;
+  const add=(k,v)=>{ const i=document.createElement("input"); i.type="hidden"; i.name="entry."+CONFIG.entries[k]; i.value=v; f.appendChild(i); };
+  ["raca","beneficio","idade","genero","conhece","frequencia","poder","medidas"].forEach(k=>add(k,S.a[k]));
+  (S.a.problemas||[]).forEach(v=>add("problemas",v));
+  add("local", `Bairro: ${S.bairro} | Turma: ${S.turma.trim()}`);
+  document.body.appendChild(f);
+  const sink=document.getElementById("gf_sink");
+  let ok=false;
+  sink.onload=()=>{ if(ok) return; ok=true; st.innerHTML='<div class="status ok">✅ Investigação registrada! Obrigado por participar.</div>'; f.remove(); };
+  setTimeout(()=>{ if(!ok) st.innerHTML='<div class="status err">⚠️ Não conseguimos confirmar o envio. Verifique a internet.</div>'; },12000);
+  f.submit();
+}
+
+/* ---------- Confete ---------- */
+function confetti(){
+  const c=document.getElementById("confetti"), x=c.getContext("2d");
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  c.width=innerWidth; c.height=innerHeight;
+  const cols=["#22a865","#f5b82e","#2a7fd4","#e0643c","#0f3d2e"];
+  const P=Array.from({length:140},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height*.5,r:4+Math.random()*5,c:cols[Math.random()*5|0],vy:2+Math.random()*3,vx:-1.5+Math.random()*3,a:Math.random()*6}));
+  let f=0;(function loop(){ x.clearRect(0,0,c.width,c.height);
+    P.forEach(p=>{p.y+=p.vy;p.x+=p.vx;p.a+=.1;x.save();x.translate(p.x,p.y);x.rotate(p.a);x.fillStyle=p.c;x.fillRect(-p.r/2,-p.r/2,p.r,p.r*1.6);x.restore();});
+    if(++f<200) requestAnimationFrame(loop); else x.clearRect(0,0,c.width,c.height);})();
+}
+
+render(1);
+</script>
+<!--
+  COMO LIGAR AO GOOGLE FORMS
+  1. No Google Forms, abra ⋮ > "Gerar link pré-preenchido", preencha qualquer coisa e copie o link.
+  2. O link terá ".../forms/d/e/ID_DO_FORM/viewform?entry.123=...&entry.456=..."
+  3. Cole o ID_DO_FORM em CONFIG.formId e cada número entry.XXX no campo correspondente de CONFIG.entries.
+  4. Em Configurações > Respostas, deixe DESLIGADO "Restringir a usuários" / "Coletar e-mails" (exigir login bloqueia o envio).
+  Obs.: os textos das opções aqui são idênticos aos do formulário. Se alterar uma opção no Forms, altere aqui também.
+-->
+</body>
+</html>
