@@ -565,7 +565,7 @@ async function initMap(el){
   lmap=L.map("lmap",{zoomControl:true,attributionControl:true}).setView([-1.37,-48.40],12);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap"}).addTo(lmap);
   desenhar();
-  try{ lmap.fitBounds(L.featureGroup(lcamada.getLayers()).getBounds().pad(0.15)); }catch(e){}
+  setTimeout(()=>{ try{ lmap.invalidateSize(); lmap.fitBounds(L.featureGroup(lcamada.getLayers()).getBounds().pad(0.15),{maxZoom:13}); }catch(e){} },350);
   await carregarMapaNovo();
   if(MAPA_NOVO && lmap) desenhar();
 }
