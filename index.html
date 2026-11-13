@@ -25,7 +25,7 @@ const CONFIG = {
     beneficio: "410131712",   // Você ou alguém da sua família recebe algum benefício do governo?
     idade: "748958675",       // Qual é a sua idade?
     genero: "1403924212",      // Qual a sua identidade de gênero?
-    local: "894056418",       // Bairro e turma  (recebe "Bairro: X | Turma: Y")
+    local: "894056418",       // Bairro e curso  (recebe "Bairro: X | Curso: Y")
     conhece: "1259005502",     // Antes desta pesquisa, você já tinha ouvido falar em Racismo Ambiental?
     problemas: "1300938080",   // Na região onde você mora, quais problemas ambientais estão presentes?
     frequencia: "1507005119",  // Com que frequência esses problemas ambientais afetam...
@@ -303,9 +303,15 @@ const Q = [
       {v:"Sim", label:"Sim", em:"✅"},{v:"Não", label:"Não", em:"❌"},{v:"Não sei responder", label:"Não sei", em:"🤷"}
     ]},
   { key:"local", type:"local", kicker:"Última pista · Seu território",
-    title:"Onde fica sua base?", sub:"Só o bairro, sem endereço. E sua turma entra no placar!" }
+    title:"Onde fica sua base?", sub:"Só o bairro, sem endereço. E seu curso entra no placar!" }
 ];
 
+const CURSOS = [
+  ["Técnico integrado", ["Informática (integrado)","Meio Ambiente (integrado)","Meio Ambiente (PROEJA)"]],
+  ["Técnico subsequente", ["Administração (subsequente)","Secretaria Escolar (subsequente)","Segurança do Trabalho (subsequente)"]],
+  ["Graduação", ["Ciência e Tecnologia","Gestão Ambiental","Letras – Língua Portuguesa"]],
+  ["Outro", ["Outro curso"]]
+];
 const BAIRROS = ["40 Horas","Águas Brancas","Águas Lindas","Atalaia","Aurá","Centro (Ananindeua)","Cidade Nova","Coqueiro","Curuçambá","Distrito Industrial","Geraldo Palmeira","Guajará","Guanabara","Heliolândia","Icuí-Guajará","Icuí-Laranjeira","Jaderlândia","Júlia Seffer","Levilândia","Maguari","PAAR","Providência","Outro bairro de Ananindeua","Belém","Marituba","Outra cidade"];
 
 /* ---------- Respostas já coletadas (somente totais, sem CEP/endereço) ---------- */
@@ -368,15 +374,16 @@ function introHTML(){
     </svg>
     <div class="hero-body">
       <h1>Missão <em>Detetive Ambiental</em></h1>
-      <p>Investigue o seu bairro, ganhe XP e descubra o <b>Raio-X Ambiental</b> da sua região. Sua turma pode ganhar o placar da escola!</p>
-      <div class="chips"><span class="chip">⏱️ 2 minutos</span><span class="chip">🔎 10 pistas</span><span class="chip">🏆 Placar por turma</span></div>
+      <p>Investigue o seu bairro, ganhe XP e descubra o <b>Raio-X Ambiental</b> da sua região. Seu curso pode ganhar o placar do campus!</p>
+      <p style="font-size:13.5px;opacity:.75;margin-top:8px">Pesquisa com estudantes do IFPA – Campus Ananindeua</p>
+      <div class="chips"><span class="chip">⏱️ 2 minutos</span><span class="chip">🔎 10 pistas</span><span class="chip">🏆 Placar por curso</span></div>
     </div>
   </div>
   ${done?'<p class="hint" style="margin-top:14px">👀 Parece que você já completou a missão neste aparelho. Se for outra pessoa, pode jogar normalmente.</p>':''}
   <div class="cta"><button class="btn sun" data-act="start">Começar missão →</button>
   <button class="btn ghost" data-act="panel">📊 Ver resultados até agora (${DADOS.n} detetives)</button>
   <button class="btn ghost" data-act="map">🗺️ Mapa dos problemas por bairro</button>
-  <button class="btn ghost" data-act="placar">🏆 Placar das turmas</button>
+  <button class="btn ghost" data-act="placar">🏆 Placar dos cursos</button>
   <p class="privacy">🔒 Anônimo: não pedimos nome, e-mail nem endereço. As respostas são usadas só para fins educacionais e científicos.</p></div>`;
 }
 
@@ -404,7 +411,7 @@ function localHTML(q){
   const opts = BAIRROS.map(b=>`<option ${S.bairro===b?'selected':''}>${b}</option>`).join("");
   return `<div class="kicker">${q.kicker}</div><h2 class="q">${q.title}</h2><p class="sub">${q.sub}</p>
   <div class="field"><label for="bairro">Seu bairro</label><div class="selwrap"><select id="bairro"><option value="">Escolha…</option>${opts}</select></div></div>
-  <div class="field"><label for="turma">Sua turma</label><input type="text" id="turma" maxlength="12" placeholder="Ex.: 1º A, 9º B" value="${S.turma.replace(/"/g,'')}"></div>
+  <div class="field"><label for="turma">Seu curso no IFPA</label><div class="selwrap"><select id="turma"><option value="">Escolha…</option>${CURSOS.map(([g,l])=>`<optgroup label="${g}">${l.map(c=>`<option ${S.turma===c?'selected':''}>${c}</option>`).join("")}</optgroup>`).join("")}</select></div></div>
   <div class="cta"><button class="btn sun" data-act="finish" ${S.bairro&&S.turma.trim()?'':'disabled'}>Revelar meu Raio-X 🔍</button></div>`;
 }
 
@@ -439,10 +446,10 @@ function resultHTML(){
   </div>
   ${youHTML()}
   <div class="challenge">
-    <h3>🏆 Desafio da turma ${escapeHTML(S.turma)}</h3>
-    <p>Chame mais 3 colegas da sua turma para completar a missão. A turma com mais participação ganha o placar da escola!</p>
+    <h3>🏆 Desafio de ${escapeHTML(S.turma)}</h3>
+    <p>Chame mais 3 colegas do seu curso para completar a missão. O curso com mais participação ganha o placar do campus!</p>
     <p id="posTurma" style="font-weight:800;margin-top:8px"></p>
-    <button class="btn ghost" data-act="placar" style="margin-top:10px">🏆 Ver o placar das turmas</button>
+    <button class="btn ghost" data-act="placar" style="margin-top:10px">🏆 Ver o placar dos cursos</button>
   </div>
   <div class="cta" style="padding-top:12px"><button class="btn sun" data-act="panel" style="margin-bottom:12px">📊 Ver o painel da pesquisa</button><button class="btn ghost" data-act="map" style="margin:0 0 12px">🗺️ Ver seu bairro no mapa</button><button class="btn" data-act="copy">📋 Copiar link para os colegas</button>
   <button class="btn ghost" data-act="again">Outra pessoa vai responder neste aparelho</button></div>`;
@@ -495,7 +502,7 @@ function panelHTML(){
     <p class="note">Média de problemas ambientais apontados por grupo, na 1ª rodada.</p>
     ${g("Recebem benefício","Não recebem")}
     ${g("Negros e pardos","Brancos")}
-    <p class="note" style="margin:12px 0 0">Atenção, detetive: a amostra ainda é pequena e veio quase toda de uma turma. Por isso essas diferenças ainda não provam nada. Com mais respostas de toda a escola, o retrato fica confiável.</p>
+    <p class="note" style="margin:12px 0 0">Atenção, detetive: a amostra ainda é pequena e veio quase toda de uma única turma. Por isso essas diferenças ainda não provam nada. Com mais respostas de toda a escola, o retrato fica confiável.</p>
   </div>
   <div class="sec"><h3>🛠️ O que fazer primeiro</h3>${bars("medidas",d,true)}</div>
   <div class="sec"><h3>🧠 Já conheciam racismo ambiental?</h3>${bars("conhece",d,false)}</div>
@@ -507,7 +514,7 @@ function panelHTML(){
 /* ---------- Mapa ---------- */
 const PROB = {todos:"Todos os problemas", enchente:"🌊 Alagamento", lixo:"🗑️ Lixo / praças", esgoto:"🦠 Esgoto", agua:"🚱 Falta d'água"};
 let MAPA_NOVO = null, TURMAS = null, mapaFiltro = "todos", lmap = null, lcamada = null, placarTimer = null, placarHora = null;
-const normTurma = t => String(t||"").replace(/[^0-9A-Za-z]/g,"").toUpperCase();
+const normTurma = t => String(t||"").trim();
 function mapaDados(){
   const t = JSON.parse(JSON.stringify(MAPA_ANTIGO));
   const somar=(b,o)=>{ const a=t[b]||(t[b]={n:0,enchente:0,lixo:0,agua:0,esgoto:0,nenhum:0,freq:0}); for(const k in a) a[k]+=(+o[k]||0); };
@@ -517,7 +524,7 @@ function mapaDados(){
 }
 function parseCSV(txt){
   const lines=txt.trim().split(/\r?\n/).map(l=>l.split(",").map(c=>c.replace(/^"|"$/g,"").trim()));
-  const h=lines.shift()||[]; const iT=h.indexOf("turma");
+  const h=lines.shift()||[]; const iT=h.indexOf("curso");
   const campos=["bairro","n","enchente","lixo","agua","esgoto","nenhum","freq"];
   const mapa=lines.filter(l=>l[0]).map(l=>Object.fromEntries(campos.map((k,i)=>[k,i?+l[i]||0:l[i]])));
   const turmas=iT<0?[]:lines.filter(l=>l[iT]).map(l=>({turma:l[iT],total:+l[iT+1]||0}));
@@ -586,17 +593,17 @@ async function initMap(el){
   await carregarMapaNovo();
   if(MAPA_NOVO && lmap) desenhar();
 }
-/* ---------- Placar das turmas ---------- */
+/* ---------- Placar dos cursos ---------- */
 const QR_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAN4AAADeCAIAAADdBSngAAAF3ElEQVR4Xu3dzY3tRABEYR4iADIhA4J/GZAJGQxiS2+OSm3fM+J8a9v9c0stlT3S/Pj6+vol8fnVN6XkX0UzUkUzUkUzUkUzUkUzUkUzUkUzUkUzUkUzUkUzUr+Ref3+5x/ksof8/fOv/zz5nM95DXHrOSfy5G1Xb+3GNvot5Pfq1IxU0YxU0YxU0YxU0YwUaugn0rA2n22OW9febHtI9oe8H/D/pp2akSqakSqakSqakSqakRobOmmyxNZSyXfkzdZ/SdslT/6Ou0HWvunUjFTRjFTRjFTRjFTRjNS1hv4m0naJrRGTL9Tkmuds67Lp1IxU0YxU0YxU0YxU0YzUt2zot76hk6Z/jkVGJx15a/HPPdmmUzNSRTNSRTNSRTNSRTNS1xo6aY5vIj36tN31nO0dwi2f/U07NSNVNCNVNCNVNCNVNCM1NnTSHJ9Dvj5v1xBbi9/ms421+exveurUjFTRjFTRjFTRjFTRjBRq6J/9lroh3XZbF2myWx/fkPmctrW/qVMzUkUzUkUzUkUzUkUzUqih3+qbpDUTpF2S3krW9SayP59dO9kxsvNkFZ2akSqakSqakSqakSqakUINfXOrb25IBzyRBrrdRXrrc6MTz41O1n7q1IxU0YxU0YxU0YxU0YzU2NBJ53qz8ZG3AW8i+7O9Q9iQ3+K8ZlsFuYvo1IxU0YxU0YxU0YxU0YzUj6+vrytTIx3wtN11y5ujb72VtHjy5O0NBrlrmyG5q1MzUkUzUkUzUkUzUkUzUqihb02WNMcN6Xe33gaQVWxN9taubqOT/SHI6CfyC3ZqRqpoRqpoRqpoRqpoRgr9lfvWwrZedgtp1hvSLsk1xHOrIMgqyAzJc06dmpEqmpEqmpEqmpEqmpFC39BPt77/Etv7AdIKn2uX5MkEWTtZKfkFN9voRKdmpIpmpIpmpIpmpIpmpNA39K1vbndtjY/ctc2HvIt47pptzrf6OHk/QNa+6dSMVNGMVNGMVNGMVNGM1LVv6G8ifZwg/Ze01NN21y3b6NtdZO2bTs1IFc1IFc1IFc1IFc1IPfgN/bkeTb7bkmue66Rk9BO5i7xVINfcsu0hyUanZqSKZqSKZqSKZqSKZqRQQ9881xO3Vkjmsz35s27N+db+kPZNdGpGqmhGqmhGqmhGqmhG6tpfuZOeeOuaE3nyc3edyNfw55Cuve0Gad+31t6pGamiGamiGamiGamiGamxoROkqW1dkiCdnfRN0r43ZPRbe0jGIsjvdWvnOzUjVTQjVTQjVTQjVTQjhf7KfeuJWyvc7iLNcUPWviFz3naD3LWtizz5lk7NSBXNSBXNSBXNSBXNSD34Df1EOumGfLclyHO2lro14ls7RtZFkLWTOZPndGpGqmhGqmhGqmhGqmhGCn1DJ12bdC7SE7drTuQ5n0U6O9lV8usQZMe2OZPOfurUjFTRjFTRjFTRjFTRjBRq6KSXkZ5I+iZpc+Sac6xtdHLXrbU/h+wYueZNnZqRKpqRKpqRKpqRKpqRevWv3G+xvTEgyBfq03YXeQ5BOvv2BoPo1IxU0YxU0YxU0YxU0YzU+A39TaQDki55Indto99q1qRrk1WQtZOVkmtu6dSMVNGMVNGMVNGMVNGMFGropCfesvVN0hy3L++k2262Od9CRr+19m2sTs1IFc1IFc1IFc1IFc1IjQ39s91ta3zkLvJ+gDxns41O7iLXEORvA27tT6dmpIpmpIpmpIpmpIpmpK419DdtfZM0R9JAybd4cg1B5kOQtW9zfu7JnZqRKpqRKpqRKpqRKpqR+pYN/XSryW5PJt2WXEOQlW6tmdhWQeZz6tSMVNGMVNGMVNGMVNGM1LWGvrWwzTbW1i5v3UVs6zptf2NAnrPNcNvDTs1IFc1IFc1IFc1IFc1IjQ39VgfcbI3P79auPvednczwHH3r9Z2akSqakSqakSqakSqakfqW/w89/wedmpEqmpEqmpEqmpEqmpEqmpEqmpEqmpEqmpEqmpEqmpH6B68v0VYJrbz8AAAAAElFTkSuQmCC";
 function placarHTML(){
   const proj = location.hash==="#placar";
   return `<div class="placar${proj?' proj':''}">
   <div class="kicker">Placar ao vivo</div>
-  <h2 class="q">🏆 Qual turma investiga mais?</h2>
-  <p class="sub">Cada resposta conta 1 ponto para a turma. O placar se atualiza sozinho a cada 30 segundos.</p>
+  <h2 class="q">🏆 Qual curso investiga mais?</h2>
+  <p class="sub">Cada resposta conta 1 ponto para o curso. O placar se atualiza sozinho a cada 30 segundos.</p>
   <div id="placarLista"><p class="mapnote">Carregando o placar…</p></div>
   <p class="mapnote" id="placarNota"></p>
-  ${proj?`<div class="qrbox"><img src="${QR_URI}" alt="QR Code da pesquisa" style="width:170px;height:170px;display:block;margin:0 auto 10px;border-radius:10px"><br>📱 Aponte a câmera ou entre em <b>confucio21-max.github.io/missao-detetive-ambiental</b> e some pontos para sua turma!</div>`:`<div class="cta"><button class="btn sun" data-act="start">Começar minha missão →</button><button class="btn ghost" data-act="closeplacar">← Voltar</button></div>`}
+  ${proj?`<div class="qrbox"><img src="${QR_URI}" alt="QR Code da pesquisa" style="width:170px;height:170px;display:block;margin:0 auto 10px;border-radius:10px"><br>📱 Aponte a câmera ou entre em <b>confucio21-max.github.io/missao-detetive-ambiental</b> e some pontos para o seu curso!</div>`:`<div class="cta"><button class="btn sun" data-act="start">Começar minha missão →</button><button class="btn ghost" data-act="closeplacar">← Voltar</button></div>`}
   </div>`;
 }
 function desenharPlacar(){
@@ -604,12 +611,12 @@ function desenharPlacar(){
   const T=(TURMAS||[]).slice().sort((a,b)=>b.total-a.total);
   const minha = S.finished ? normTurma(S.turma) : "";
   if(!CONFIG.mapaCsv || TURMAS===null){ el.innerHTML='<p class="mapnote">Não foi possível carregar o placar agora. Verifique a internet.</p>'; return; }
-  if(!T.length){ el.innerHTML='<div class="sec"><h3>Nenhuma turma ainda!</h3><p class="note" style="margin:6px 0 0">Seja a primeira turma a aparecer no placar. 🚀</p></div>'; return; }
+  if(!T.length){ el.innerHTML='<div class="sec"><h3>Nenhum curso ainda!</h3><p class="note" style="margin:6px 0 0">Seja o primeiro curso a aparecer no placar. 🚀</p></div>'; return; }
   const max=T[0].total, medalha=["🥇","🥈","🥉"];
   el.innerHTML='<div class="sec">'+T.slice(0,15).map((t,i)=>{ const w=Math.round(100*t.total/max), me=t.turma===minha;
-    return `<div class="row prow${me?' me':''}"><div class="lb"><span>${medalha[i]||(i+1)+"º"} &nbsp;Turma ${escapeHTML(t.turma)}</span><span>${t.total} resposta${t.total>1?"s":""}</span></div><div class="track"><i style="width:${w}%"></i></div></div>`; }).join("")+'</div>';
+    return `<div class="row prow${me?' me':''}"><div class="lb"><span>${medalha[i]||(i+1)+"º"} &nbsp;${escapeHTML(t.turma)}</span><span>${t.total} resposta${t.total>1?"s":""}</span></div><div class="track"><i style="width:${w}%"></i></div></div>`; }).join("")+'</div>';
   const total=T.reduce((a,t)=>a+t.total,0);
-  document.getElementById("placarNota").textContent = `${total} respostas de ${T.length} turma${T.length>1?"s":""} nesta rodada`+(placarHora?` · atualizado às ${placarHora.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}`:"")+". Pode levar alguns minutos para uma resposta nova aparecer.";
+  document.getElementById("placarNota").textContent = `${total} respostas de ${T.length} curso${T.length>1?"s":""} nesta rodada`+(placarHora?` · atualizado às ${placarHora.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}`:"")+". Pode levar alguns minutos para uma resposta nova aparecer.";
 }
 async function initPlacar(){
   clearInterval(placarTimer);
@@ -620,7 +627,7 @@ async function posicaoTurma(){
   await carregarDados(true);
   const T=(TURMAS||[]).slice().sort((a,b)=>b.total-a.total), i=T.findIndex(t=>t.turma===normTurma(S.turma));
   const el=document.getElementById("posTurma"); if(!el) return;
-  el.textContent = i>=0 ? `Agora sua turma está em ${i+1}º lugar no placar, com ${T[i].total} resposta${T[i].total>1?"s":""}.` : "Sua resposta entra no placar em alguns minutos.";
+  el.textContent = i>=0 ? `Agora seu curso está em ${i+1}º lugar no placar, com ${T[i].total} resposta${T[i].total>1?"s":""}.` : "Sua resposta entra no placar em alguns minutos.";
 }
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 
@@ -639,7 +646,7 @@ function bind(el){
   if(q && q.type==="local"){
     const sel = el.querySelector("#bairro"), inp = el.querySelector("#turma"), btn = el.querySelector("[data-act=finish]");
     const upd=()=>{ S.bairro=sel.value; S.turma=inp.value; btn.disabled=!(S.bairro&&S.turma.trim()); };
-    sel.addEventListener("change",upd); inp.addEventListener("input",upd);
+    sel.addEventListener("change",upd); inp.addEventListener("change",upd);
   }
   if(S.i>=Q.length){
     requestAnimationFrame(()=>{ const n=document.getElementById("needle"); if(n) n.style.left=score().value+"%"; });
@@ -695,7 +702,7 @@ function act(a){
   else if(a==="finish"){ S.finished=true; gain(); S.i=Q.length; render(1); submit(); confetti(); store("rac_amb_done","1"); }
   else if(a==="copy"){
     const url = location.href.split("#")[0];
-    navigator.clipboard.writeText(url).then(()=>badge("📋","Link copiado! Mande no grupo da turma")).catch(()=>badge("🔗","Copie o link da barra do navegador"));
+    navigator.clipboard.writeText(url).then(()=>badge("📋","Link copiado! Mande no grupo do seu curso")).catch(()=>badge("🔗","Copie o link da barra do navegador"));
   }
   else if(a==="again"){ S.finished=false; S.i=-1; S.a={}; S.xp=0; S.bairro=""; S.turma=""; S.badges.clear(); render(-1); }
 }
@@ -721,7 +728,7 @@ function submit(){
   const add=(k,v)=>{ const i=document.createElement("input"); i.type="hidden"; i.name="entry."+CONFIG.entries[k]; i.value=v; f.appendChild(i); };
   ["raca","beneficio","idade","genero","conhece","frequencia","poder","medidas"].forEach(k=>add(k,S.a[k]));
   (S.a.problemas||[]).forEach(v=>add("problemas",v));
-  add("local", `Bairro: ${S.bairro} | Turma: ${S.turma.trim()}`);
+  add("local", `Bairro: ${S.bairro} | Curso: ${S.turma.trim()}`);
   document.body.appendChild(f);
   const sink=document.getElementById("gf_sink");
   let ok=false;
