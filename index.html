@@ -351,7 +351,7 @@ function render(dir){
   if(S.placar) el.innerHTML = placarHTML();
   else if(S.map) el.innerHTML = mapHTML();
   else if(S.panel) el.innerHTML = panelHTML();
-  else if(S.i<0) el.innerHTML = introHTML();
+  else if(S.i<0){ el.innerHTML = introHTML(); setTimeout(atualizaContador,0); }
   else if(S.i>=Q.length) el.innerHTML = resultHTML();
   else el.innerHTML = qHTML(Q[S.i]);
   stage.appendChild(el);
@@ -455,22 +455,33 @@ function resultHTML(){
   <button class="btn ghost" data-act="again">Outra pessoa vai responder neste aparelho</button></div>`;
 }
 /* ---------- Você e seus colegas / Painel ---------- */
+const MAPA_PROB = {enchente:"Enchentes ou alagamentos frequentes.", lixo:"Acúmulo ou coleta irregular de lixo e falta de áreas verdes, praças ou espaços de lazer.", agua:"Falta ou irregularidade no abastecimento de água.", esgoto:"Esgoto a céu aberto ou tratamento de esgoto insuficiente.", nenhum:"Nenhum desses problemas"};
+function novosAoVivo(){ return (MAPA_NOVO||[]).reduce((a,r)=>a+(+r.n||0),0); }
+function totalAoVivo(){ return DADOS.n + Math.max(novosAoVivo(), S.finished?1:0); }
+function atualizaContador(){ const b=document.querySelector('[data-act=panel].ghost'); if(b && S.i<0 && !S.panel) b.textContent=`📊 Ver resultados até agora (${totalAoVivo()} detetives)`; }
 function labelFor(key,v){ const q=Q.find(q=>q.key===key); const o=q&&q.options&&q.options.find(o=>o.v===v); return o?o.label:v; }
 function pct(c,n){ return Math.round(100*c/n); }
 function mine(key,v){ const a=S.a[key]; return S.finished && (Array.isArray(a)?a.includes(v):a===v); }
 function withMe(){
   const d=JSON.parse(JSON.stringify(DADOS));
+  d.nProb = d.n;
+  const nv=novosAoVivo();
+  if(nv>0){
+    d.nProb += nv;
+    (MAPA_NOVO||[]).forEach(r=>{ for(const k in MAPA_PROB) d.problemas[MAPA_PROB[k]]=(d.problemas[MAPA_PROB[k]]||0)+(+r[k]||0); });
+  }
   if(!S.finished) return d;
   d.n++;
   ["raca","beneficio","idade","conhece","frequencia","poder","medidas"].forEach(k=>{ const v=S.a[k]; if(v) d[k][v]=(d[k][v]||0)+1; });
-  (S.a.problemas||[]).forEach(v=>d.problemas[v]=(d.problemas[v]||0)+1);
+  if(nv===0){ d.nProb++; (S.a.problemas||[]).forEach(v=>d.problemas[v]=(d.problemas[v]||0)+1); }
   return d;
 }
 function bars(key,d,sort){
+  const N = key==="problemas" ? (d.nProb||d.n) : d.n;
   const q=Q.find(q=>q.key===key);
   let rows=q.options.map(o=>({v:o.v,label:o.label,c:d[key][o.v]||0})).filter(r=>r.c>0);
   if(sort) rows.sort((a,b)=>b.c-a.c);
-  return rows.map(r=>`<div class="row${mine(key,r.v)?' me':''}"><div class="lb"><span>${r.label}</span><span>${pct(r.c,d.n)}% · ${r.c}</span></div><div class="track"><i data-w="${pct(r.c,d.n)}"></i></div></div>`).join("");
+  return rows.map(r=>`<div class="row${mine(key,r.v)?' me':''}"><div class="lb"><span>${r.label}</span><span>${pct(r.c,N)}% · ${r.c}</span></div><div class="track"><i data-w="${pct(r.c,N)}"></i></div></div>`).join("");
 }
 function youHTML(){
   const D=DADOS, n=D.n, li=[];
@@ -479,23 +490,25 @@ function youHTML(){
   else probs.forEach(p=>li.push(`<b>${pct(D.problemas[p]||0,n)}%</b> dos colegas também apontaram <b>${labelFor("problemas",p).toLowerCase()}</b>.`));
   if(S.a.poder) li.push(`<b>${pct(D.poder[S.a.poder]||0,n)}%</b> pensam como você sobre o poder público: “${labelFor("poder",S.a.poder).toLowerCase()}”.`);
   if(S.a.medidas) li.push(`<b>${pct(D.medidas[S.a.medidas]||0,n)}%</b> escolheram a mesma solução que você.`);
-  return `<div class="you"><h3>👥 Você e os outros ${n} detetives</h3><ul>${li.map(x=>`<li>${x}</li>`).join("")}</ul></div>`;
+  return `<div class="you"><h3>👥 Você e os outros ${totalAoVivo()-1} detetives</h3><ul>${li.map(x=>`<li>${x}</li>`).join("")}</ul></div>`;
 }
 function panelHTML(){
   const d=withMe(), G=DADOS.grupos;
-  const algum=d.n-(d.problemas["Nenhum desses problemas"]||0);
+  const TOT=totalAoVivo(), NV=TOT-DADOS.n;
+  const algum=d.nProb-(d.problemas["Nenhum desses problemas"]||0);
   const resolve=d.poder["Atua rapidamente e resolve o problema de forma adequada."]||0;
   const g=(a,b,titulo)=>`<div class="cmp"><div><small>${a}</small><b>${G[a].media.toLocaleString("pt-BR")}</b><small>problemas em média · ${G[a].n} alunos</small></div><div><small>${b}</small><b>${G[b].media.toLocaleString("pt-BR")}</b><small>problemas em média · ${G[b].n} alunos</small></div></div>`;
   return `
   <div class="kicker">Painel da pesquisa</div>
   <h2 class="q">O que os detetives já descobriram</h2>
-  <p class="sub">${S.finished?`Inclui a sua resposta: você é o detetive nº ${d.n}!`:`Respostas da 1ª rodada da pesquisa.`}</p>
+  <p class="sub">${TOT} respostas: ${DADOS.n} da 1ª rodada + ${NV} nova${NV===1?"":"s"}${S.finished?" (incluindo a sua!)":""}.</p>
   <div class="big">
-    <div><b>${d.n}</b><small>detetives participaram</small></div>
-    <div><b>${pct(algum,d.n)}%</b><small>veem pelo menos um problema no bairro</small></div>
+    <div><b>${TOT}</b><small>detetives participaram</small></div>
+    <div><b>${pct(algum,d.nProb)}%</b><small>veem pelo menos um problema no bairro</small></div>
     <div><b>${resolve}</b><small>acham que o poder público resolve rápido</small></div>
   </div>
-  <div class="sec"><h3>🔎 O que existe nos bairros</h3><p class="note">Cada pessoa podia marcar mais de um.</p>${bars("problemas",d,true)}</div>
+  <div class="sec"><h3>🔎 O que existe nos bairros</h3><p class="note">Cada pessoa podia marcar mais de um. Atualizado ao vivo.</p>${bars("problemas",d,true)}</div>
+  <p class="note" style="margin:0 0 10px">Os gráficos abaixo mostram a 1ª rodada${S.finished?" + a sua resposta":""}.</p>
   <div class="sec"><h3>⏱️ Com que frequência afeta</h3>${bars("frequencia",d,false)}</div>
   <div class="sec"><h3>🏛️ Quando há um problema, o poder público…</h3><p class="note">Algumas pessoas marcaram mais de uma opção.</p>${bars("poder",d,true)}</div>
   <div class="sec"><h3>⚖️ Quem é mais afetado?</h3>
@@ -692,7 +705,7 @@ function advance(addXp=true){
 
 function act(a){
   if(a==="start"){ S.panel=false; S.map=false; S.placar=false; if(location.hash==="#placar") history.replaceState(null,"",location.pathname); S.i=0; render(1); }
-  else if(a==="panel"){ S.map=false; S.panel=true; render(1); }
+  else if(a==="panel"){ S.map=false; S.panel=true; render(1); carregarDados(true).then(()=>{ if(S.panel) render(0); }); }
   else if(a==="map"){ S.map=true; render(1); }
   else if(a==="placar"){ S.placar=true; render(1); }
   else if(a==="closeplacar"){ S.placar=false; if(location.hash==="#placar") history.replaceState(null,"",location.pathname); render(-1); }
@@ -752,6 +765,7 @@ function confetti(){
 if(location.hash==="#placar") S.placar=true;
 window.addEventListener("hashchange",()=>{ S.placar = location.hash==="#placar"; render(1); });
 render(1);
+carregarDados(true).then(atualizaContador);
 </script>
 <!--
   COMO LIGAR AO GOOGLE FORMS
