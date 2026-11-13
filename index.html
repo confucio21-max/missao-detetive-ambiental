@@ -205,6 +205,40 @@ select:focus,input:focus{outline:none;border-color:var(--leaf)}
 .placar.proj .track{height:20px}
 .qrbox{margin-top:18px;background:var(--sun-soft);border:2px dashed #e7b23f;border-radius:var(--r);padding:16px;text-align:center;font-size:clamp(16px,2vw,24px);color:#6b4300}
 body:has(.placar.proj) .app{max-width:980px}
+/* ---------- Animações ---------- */
+.hero .sol{transform-box:fill-box;transform-origin:center;animation:sol 3.2s ease-in-out infinite}
+@keyframes sol{50%{transform:scale(1.1)}}
+.hero .raios{transform-box:fill-box;transform-origin:center;animation:gira 20s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+.hero .nuvem{animation:nuvem 26s linear infinite}
+.hero .nuvem.n2{animation-duration:38s;animation-delay:-14s}
+@keyframes nuvem{from{transform:translateX(-140px)}to{transform:translateX(440px)}}
+.hero .lupa{animation:lupa 7s ease-in-out infinite}
+@keyframes lupa{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(-150px,4px) rotate(-6deg)}50%{transform:translate(-70px,-6px) rotate(3deg)}75%{transform:translate(30px,3px) rotate(-2deg)}}
+.hero .rio{stroke-dasharray:16 10;animation:rio 2.4s linear infinite}
+@keyframes rio{to{stroke-dashoffset:-52}}
+.hero .luz{animation:luz 5s steps(1) infinite}
+.hero .luz.l2{animation-duration:7s;animation-delay:-2s}
+@keyframes luz{0%,60%{opacity:1}61%,100%{opacity:.15}}
+.opts .opt{animation:pop .42s cubic-bezier(.2,.9,.3,1.2) both}
+.opts .opt:nth-child(2){animation-delay:.05s}.opts .opt:nth-child(3){animation-delay:.1s}.opts .opt:nth-child(4){animation-delay:.15s}
+.opts .opt:nth-child(5){animation-delay:.2s}.opts .opt:nth-child(6){animation-delay:.25s}.opts .opt:nth-child(7){animation-delay:.3s}.opts .opt:nth-child(n+8){animation-delay:.35s}
+@keyframes pop{from{opacity:0;transform:translateY(14px) scale(.96)}}
+.opt.sel{animation:none}
+.opt.sel .chk{animation:marca .3s cubic-bezier(.3,1.6,.5,1)}
+@keyframes marca{from{transform:scale(.4)}}
+.btn.sun[data-act=start]{animation:chama 2.6s ease-in-out infinite}
+@keyframes chama{0%,70%,100%{transform:none}80%{transform:translateY(-3px) rotate(-.6deg)}90%{transform:translateY(-1px) rotate(.6deg)}}
+.fact.screen{animation:fato .5s cubic-bezier(.2,1.3,.4,1) both}
+@keyframes fato{from{opacity:0;transform:scale(.9) translateY(10px)}}
+.big div{animation:pop .5s both}.big div:nth-child(2){animation-delay:.1s}.big div:nth-child(3){animation-delay:.2s}
+.prow.entra{animation:pop .5s both}
+.medalha1{display:inline-block;animation:pula 1.8s ease-in-out infinite}
+@keyframes pula{0%,60%,100%{transform:none}70%{transform:translateY(-5px) scale(1.15)}80%{transform:translateY(0) scale(.95)}}
+.meu-bairro{animation:pulso 1.6s ease-in-out infinite}
+@keyframes pulso{50%{stroke-width:10px;stroke-opacity:.45}}
+.xpfloat{position:fixed;z-index:20;font-weight:800;color:#8a5a00;font-size:15px;pointer-events:none;animation:sobe .9s ease-out forwards}
+@keyframes sobe{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-34px)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -378,12 +412,16 @@ function introHTML(){
   <div class="hero">
     <svg viewBox="0 0 400 170" aria-hidden="true">
       <rect width="400" height="170" fill="#164e3b"/>
-      <circle cx="320" cy="48" r="26" fill="#f5b82e"/>
+      <g class="raios" stroke="#f5b82e" stroke-width="4" stroke-linecap="round" opacity=".55"><line x1="356.0" y1="48.0" x2="366.0" y2="48.0"/><line x1="345.5" y1="73.5" x2="352.5" y2="80.5"/><line x1="320.0" y1="84.0" x2="320.0" y2="94.0"/><line x1="294.5" y1="73.5" x2="287.5" y2="80.5"/><line x1="284.0" y1="48.0" x2="274.0" y2="48.0"/><line x1="294.5" y1="22.5" x2="287.5" y2="15.5"/><line x1="320.0" y1="12.0" x2="320.0" y2="2.0"/><line x1="345.5" y1="22.5" x2="352.5" y2="15.5"/></g>
+      <circle class="sol" cx="320" cy="48" r="26" fill="#f5b82e"/>
+      <g class="nuvem" fill="#ffffff" opacity=".18"><ellipse cx="60" cy="40" rx="30" ry="11"/><ellipse cx="80" cy="33" rx="20" ry="11"/></g>
+      <g class="nuvem n2" fill="#ffffff" opacity=".12"><ellipse cx="190" cy="26" rx="26" ry="9"/><ellipse cx="206" cy="20" rx="16" ry="9"/></g>
       <path d="M0 110 Q60 70 120 96 T240 92 T400 84 V170 H0Z" fill="#22a865"/>
       <path d="M0 130 Q80 108 160 126 T320 122 T400 118 V170 H0Z" fill="#0f3d2e"/>
       <g fill="#0b2e22"><rect x="40" y="88" width="34" height="30"/><path d="M36 90 L57 72 L78 90Z"/><rect x="94" y="80" width="40" height="38"/><path d="M90 82 L114 62 L138 82Z"/></g>
-      <g transform="translate(250 92)"><circle r="30" fill="none" stroke="#fff" stroke-width="7"/><circle r="30" fill="#ffffff22"/><path d="M21 21 L46 46" stroke="#fff" stroke-width="10" stroke-linecap="round"/><path d="M-12 -6 q8 -14 22 -8" stroke="#ffffffaa" stroke-width="4" fill="none" stroke-linecap="round"/></g>
-      <path d="M150 140 q30 -10 60 0 t60 0 t60 0" stroke="#2a7fd4" stroke-width="6" fill="none" stroke-linecap="round" opacity=".9"/>
+      <rect class="luz" x="52" y="96" width="9" height="9" rx="1.5" fill="#f5b82e"/><rect class="luz l2" x="108" y="90" width="11" height="11" rx="1.5" fill="#f5b82e"/>
+      <g class="lupa"><g transform="translate(250 92)"><circle r="30" fill="none" stroke="#fff" stroke-width="7"/><circle r="30" fill="#ffffff22"/><path d="M21 21 L46 46" stroke="#fff" stroke-width="10" stroke-linecap="round"/><path d="M-12 -6 q8 -14 22 -8" stroke="#ffffffaa" stroke-width="4" fill="none" stroke-linecap="round"/></g></g>
+      <path class="rio" d="M150 140 q30 -10 60 0 t60 0 t60 0" stroke="#2a7fd4" stroke-width="6" fill="none" stroke-linecap="round" opacity=".9"/>
     </svg>
     <div class="hero-body">
       <h1>Missão <em>Detetive Ambiental</em></h1>
@@ -528,9 +566,9 @@ function panelHTML(){
   <h2 class="q">O que os detetives já descobriram</h2>
   <p class="sub">${TOT} respostas: ${DADOS.n} da 1ª rodada + ${NV} nova${NV===1?"":"s"}${eu()?" (incluindo a sua!)":""}.</p>
   <div class="big">
-    <div><b>${TOT}</b><small>detetives participaram</small></div>
-    <div><b>${pct(algum,d.nProb)}%</b><small>veem pelo menos um problema no bairro</small></div>
-    <div><b>${resolve}</b><small>acham que o poder público resolve rápido</small></div>
+    <div><b data-n="${TOT}">${TOT}</b><small>detetives participaram</small></div>
+    <div><b data-n="${pct(algum,d.nProb)}" data-suf="%">${pct(algum,d.nProb)}%</b><small>veem pelo menos um problema no bairro</small></div>
+    <div><b data-n="${resolve}">${resolve}</b><small>acham que o poder público resolve rápido</small></div>
   </div>
   <div class="sec"><h3>🔎 O que existe nos bairros</h3><p class="note">Cada pessoa podia marcar mais de um. Atualizado ao vivo.</p>${bars("problemas",d,true)}</div>
   <p class="note" style="margin:0 0 10px">Os gráficos abaixo mostram a 1ª rodada${eu()?" + a sua resposta":""}.</p>
@@ -607,7 +645,7 @@ function desenhar(){
     const det = poucos ? `<span style="color:#5d6b64">Poucas respostas ainda: detalhes aparecem a partir de 3.</span>` :
       `<div class="pr"><span>🌊 Alagamento</span><b>${pc("enchente")}</b></div><div class="pr"><span>🗑️ Lixo / praças</span><b>${pc("lixo")}</b></div><div class="pr"><span>🦠 Esgoto</span><b>${pc("esgoto")}</b></div><div class="pr"><span>🚱 Falta d'água</span><b>${pc("agua")}</b></div><div class="pr" style="margin-top:4px"><span>Afeta com frequência</span><b>${pc("freq")}</b></div>`;
     const isMe = S.finished && S.bairro===b;
-    L.circleMarker(COORD[b],{radius:8+Math.sqrt(a.n)*5,color:isMe?"#0f3d2e":"#fff",weight:isMe?4:2,fillColor:poucos?"#9aa7a0":cor(v),fillOpacity:.85})
+    L.circleMarker(COORD[b],{radius:8+Math.sqrt(a.n)*5,color:isMe?"#0f3d2e":"#fff",weight:isMe?4:2,fillColor:poucos?"#9aa7a0":cor(v),fillOpacity:.85,className:isMe?"meu-bairro":""})
       .bindPopup(`<b class="t">${escapeHTML(b)}${isMe?" · seu bairro":""}</b>${a.n} resposta${a.n>1?"s":""}<div style="margin-top:6px">${det}</div>`).addTo(lcamada);
     if(!poucos) rows.push({b,a,v,media});
   }
@@ -650,9 +688,9 @@ function desenharPlacar(){
   const minha = S.finished ? normTurma(S.turma) : "";
   if(!CONFIG.mapaCsv || TURMAS===null){ el.innerHTML='<p class="mapnote">Não foi possível carregar o placar agora. Verifique a internet.</p>'; return; }
   if(!T.length){ el.innerHTML='<div class="sec"><h3>Nenhum curso ainda!</h3><p class="note" style="margin:6px 0 0">Seja o primeiro curso a aparecer no placar. 🚀</p></div>'; return; }
-  const max=T[0].total, medalha=["🥇","🥈","🥉"];
+  const max=T[0].total, medalha=["<span class=\"medalha1\">🥇</span>","🥈","🥉"], primeira=!el.querySelector(".prow");
   el.innerHTML='<div class="sec">'+T.slice(0,15).map((t,i)=>{ const w=Math.round(100*t.total/max), me=t.turma===minha;
-    return `<div class="row prow${me?' me':''}"><div class="lb"><span>${medalha[i]||(i+1)+"º"} &nbsp;${escapeHTML(t.turma)}</span><span>${t.total} resposta${t.total>1?"s":""}</span></div><div class="track"><i style="width:${w}%"></i></div></div>`; }).join("")+'</div>';
+    return `<div class="row prow${me?' me':''}${primeira?' entra':''}" style="animation-delay:${i*.07}s"><div class="lb"><span>${medalha[i]||(i+1)+"º"} &nbsp;${escapeHTML(t.turma)}</span><span>${t.total} resposta${t.total>1?"s":""}</span></div><div class="track"><i style="width:${w}%"></i></div></div>`; }).join("")+'</div>';
   const total=T.reduce((a,t)=>a+t.total,0);
   document.getElementById("placarNota").textContent = `${total} respostas de ${T.length} curso${T.length>1?"s":""} nesta rodada`+(placarHora?` · atualizado às ${placarHora.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}`:"")+". Pode levar alguns minutos para uma resposta nova aparecer.";
 }
@@ -667,12 +705,18 @@ async function posicaoTurma(){
   const el=document.getElementById("posTurma"); if(!el) return;
   el.textContent = i>=0 ? `Agora seu curso está em ${i+1}º lugar no placar, com ${T[i].total} resposta${T[i].total>1?"s":""}.` : (S.treino?"":"Sua resposta entra no placar em alguns minutos.");
 }
+function contaNumeros(root){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  root.querySelectorAll("[data-n]").forEach(b=>{ const fim=+b.dataset.n||0, suf=b.dataset.suf||"", t0=performance.now(), d=1000;
+    (function f(t){ const p=Math.min(1,(t-t0)/d), e=1-Math.pow(1-p,3); b.textContent=Math.round(fim*e)+suf; if(p<1) requestAnimationFrame(f); })(t0); });
+}
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 
 /* ---------- Interação ---------- */
 function bind(el){
   el.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>act(b.dataset.act)));
   requestAnimationFrame(()=>requestAnimationFrame(()=>el.querySelectorAll(".track i").forEach(i=>i.style.width=i.dataset.w+"%")));
+  contaNumeros(el);
   if(S.placar){ initPlacar(); return; }
   if(S.map){ initMap(el); return; }
   if(S.finished && S.i>=Q.length) posicaoTurma();
@@ -718,7 +762,8 @@ function pick(q,idx,el){
   setTimeout(()=>advance(first),260);
 }
 
-function gain(){ S.xp+=XP_PER; const x=document.getElementById("xp"); x.textContent="⭐ "+S.xp+" XP"; x.classList.add("pop"); setTimeout(()=>x.classList.remove("pop"),250); }
+function gain(){ S.xp+=XP_PER; const x=document.getElementById("xp");
+  try{ const r=x.getBoundingClientRect(); if(r.width){ const f=document.createElement("span"); f.className="xpfloat"; f.textContent="+"+XP_PER; f.style.left=(r.left+r.width/2-12)+"px"; f.style.top=(r.bottom+2)+"px"; document.body.appendChild(f); setTimeout(()=>f.remove(),950); } }catch(e){} x.textContent="⭐ "+S.xp+" XP"; x.classList.add("pop"); setTimeout(()=>x.classList.remove("pop"),250); }
 
 function advance(addXp=true){
   if(addXp) gain();
