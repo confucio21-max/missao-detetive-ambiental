@@ -195,6 +195,13 @@ select:focus,input:focus{outline:none;border-color:var(--leaf)}
 .leaflet-popup-content b.t{font-family:"Bricolage Grotesque",Nunito,sans-serif;font-size:16px;color:var(--forest);display:block;margin-bottom:4px}
 .leaflet-popup-content .pr{display:flex;justify-content:space-between;gap:12px}
 .ranking{margin-top:12px}
+.prow .lb{font-size:16px}
+.placar.proj .q{font-size:clamp(30px,5vw,54px)}
+.placar.proj .sub,.placar.proj .mapnote{font-size:18px}
+.placar.proj .prow .lb{font-size:clamp(18px,2.6vw,30px)}
+.placar.proj .track{height:20px}
+.qrbox{margin-top:18px;background:var(--sun-soft);border:2px dashed #e7b23f;border-radius:var(--r);padding:16px;text-align:center;font-size:clamp(16px,2vw,24px);color:#6b4300}
+body:has(.placar.proj) .app{max-width:980px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -323,7 +330,7 @@ if(!configured){
 
 /* ---------- Render ---------- */
 function setTop(){
-  document.getElementById("top").style.display = !S.panel && !S.map && S.i>=0 && S.i<Q.length ? "flex" : "none";
+  document.getElementById("top").style.display = !S.panel && !S.map && !S.placar && S.i>=0 && S.i<Q.length ? "flex" : "none";
   document.getElementById("back").hidden = S.i<=0;
   const pct = S.i<0 ? 0 : Math.min(100, (S.i)/Q.length*100);
   document.getElementById("barfill").style.width = pct+"%";
@@ -335,7 +342,8 @@ function render(dir){
   stage.innerHTML = "";
   const el = document.createElement("section");
   el.className = "screen"+(dir<0?" back-anim":"");
-  if(S.map) el.innerHTML = mapHTML();
+  if(S.placar) el.innerHTML = placarHTML();
+  else if(S.map) el.innerHTML = mapHTML();
   else if(S.panel) el.innerHTML = panelHTML();
   else if(S.i<0) el.innerHTML = introHTML();
   else if(S.i>=Q.length) el.innerHTML = resultHTML();
@@ -368,6 +376,7 @@ function introHTML(){
   <div class="cta"><button class="btn sun" data-act="start">Começar missão →</button>
   <button class="btn ghost" data-act="panel">📊 Ver resultados até agora (${DADOS.n} detetives)</button>
   <button class="btn ghost" data-act="map">🗺️ Mapa dos problemas por bairro</button>
+  <button class="btn ghost" data-act="placar">🏆 Placar das turmas</button>
   <p class="privacy">🔒 Anônimo: não pedimos nome, e-mail nem endereço. As respostas são usadas só para fins educacionais e científicos.</p></div>`;
 }
 
@@ -432,6 +441,8 @@ function resultHTML(){
   <div class="challenge">
     <h3>🏆 Desafio da turma ${escapeHTML(S.turma)}</h3>
     <p>Chame mais 3 colegas da sua turma para completar a missão. A turma com mais participação ganha o placar da escola!</p>
+    <p id="posTurma" style="font-weight:800;margin-top:8px"></p>
+    <button class="btn ghost" data-act="placar" style="margin-top:10px">🏆 Ver o placar das turmas</button>
   </div>
   <div class="cta" style="padding-top:12px"><button class="btn sun" data-act="panel" style="margin-bottom:12px">📊 Ver o painel da pesquisa</button><button class="btn ghost" data-act="map" style="margin:0 0 12px">🗺️ Ver seu bairro no mapa</button><button class="btn" data-act="copy">📋 Copiar link para os colegas</button>
   <button class="btn ghost" data-act="again">Outra pessoa vai responder neste aparelho</button></div>`;
@@ -495,7 +506,8 @@ function panelHTML(){
 }
 /* ---------- Mapa ---------- */
 const PROB = {todos:"Todos os problemas", enchente:"🌊 Alagamento", lixo:"🗑️ Lixo / praças", esgoto:"🦠 Esgoto", agua:"🚱 Falta d'água"};
-let MAPA_NOVO = null, mapaFiltro = "todos", lmap = null, lcamada = null;
+let MAPA_NOVO = null, TURMAS = null, mapaFiltro = "todos", lmap = null, lcamada = null, placarTimer = null, placarHora = null;
+const normTurma = t => String(t||"").replace(/[^0-9A-Za-z]/g,"").toUpperCase();
 function mapaDados(){
   const t = JSON.parse(JSON.stringify(MAPA_ANTIGO));
   const somar=(b,o)=>{ const a=t[b]||(t[b]={n:0,enchente:0,lixo:0,agua:0,esgoto:0,nenhum:0,freq:0}); for(const k in a) a[k]+=(+o[k]||0); };
@@ -505,12 +517,17 @@ function mapaDados(){
 }
 function parseCSV(txt){
   const lines=txt.trim().split(/\r?\n/).map(l=>l.split(",").map(c=>c.replace(/^"|"$/g,"").trim()));
-  const h=lines.shift(); return lines.filter(l=>l[0]).map(l=>Object.fromEntries(h.map((k,i)=>[k,i?+l[i]||0:l[i]])));
+  const h=lines.shift()||[]; const iT=h.indexOf("turma");
+  const campos=["bairro","n","enchente","lixo","agua","esgoto","nenhum","freq"];
+  const mapa=lines.filter(l=>l[0]).map(l=>Object.fromEntries(campos.map((k,i)=>[k,i?+l[i]||0:l[i]])));
+  const turmas=iT<0?[]:lines.filter(l=>l[iT]).map(l=>({turma:l[iT],total:+l[iT+1]||0}));
+  return {mapa,turmas};
 }
-async function carregarMapaNovo(){
-  if(!CONFIG.mapaCsv || MAPA_NOVO) return;
-  try{ const r=await fetch(CONFIG.mapaCsv+(CONFIG.mapaCsv.includes("?")?"&":"?")+"t="+Date.now()); MAPA_NOVO=parseCSV(await r.text()); }catch(e){ MAPA_NOVO=null; }
+async function carregarDados(forcar){
+  if(!CONFIG.mapaCsv || (MAPA_NOVO && !forcar)) return;
+  try{ const r=await fetch(CONFIG.mapaCsv+(CONFIG.mapaCsv.includes("?")?"&":"?")+"t="+Date.now()); const d=parseCSV(await r.text()); MAPA_NOVO=d.mapa; TURMAS=d.turmas; placarHora=new Date(); }catch(e){}
 }
+const carregarMapaNovo = () => carregarDados(false);
 function cor(v){ // v de 0 a 1
   const s=[[60,199,122],[245,184,46],[224,100,60]]; const x=Math.max(0,Math.min(1,v))*2, i=Math.min(1,Math.floor(x)), f=x-i;
   const c=s[i].map((a,j)=>Math.round(a+(s[i+1][j]-a)*f)); return `rgb(${c})`;
@@ -569,13 +586,51 @@ async function initMap(el){
   await carregarMapaNovo();
   if(MAPA_NOVO && lmap) desenhar();
 }
+/* ---------- Placar das turmas ---------- */
+const QR_URI = "data:image/png;base64,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";
+function placarHTML(){
+  const proj = location.hash==="#placar";
+  return `<div class="placar${proj?' proj':''}">
+  <div class="kicker">Placar ao vivo</div>
+  <h2 class="q">🏆 Qual turma investiga mais?</h2>
+  <p class="sub">Cada resposta conta 1 ponto para a turma. O placar se atualiza sozinho a cada 30 segundos.</p>
+  <div id="placarLista"><p class="mapnote">Carregando o placar…</p></div>
+  <p class="mapnote" id="placarNota"></p>
+  ${proj?`<div class="qrbox"><img src="${QR_URI}" alt="QR Code da pesquisa" style="width:170px;height:170px;display:block;margin:0 auto 10px;border-radius:10px"><br>📱 Aponte a câmera ou entre em <b>confucio21-max.github.io/missao-detetive-ambiental</b> e some pontos para sua turma!</div>`:`<div class="cta"><button class="btn sun" data-act="start">Começar minha missão →</button><button class="btn ghost" data-act="closeplacar">← Voltar</button></div>`}
+  </div>`;
+}
+function desenharPlacar(){
+  const el=document.getElementById("placarLista"); if(!el) return;
+  const T=(TURMAS||[]).slice().sort((a,b)=>b.total-a.total);
+  const minha = S.finished ? normTurma(S.turma) : "";
+  if(!CONFIG.mapaCsv || TURMAS===null){ el.innerHTML='<p class="mapnote">Não foi possível carregar o placar agora. Verifique a internet.</p>'; return; }
+  if(!T.length){ el.innerHTML='<div class="sec"><h3>Nenhuma turma ainda!</h3><p class="note" style="margin:6px 0 0">Seja a primeira turma a aparecer no placar. 🚀</p></div>'; return; }
+  const max=T[0].total, medalha=["🥇","🥈","🥉"];
+  el.innerHTML='<div class="sec">'+T.slice(0,15).map((t,i)=>{ const w=Math.round(100*t.total/max), me=t.turma===minha;
+    return `<div class="row prow${me?' me':''}"><div class="lb"><span>${medalha[i]||(i+1)+"º"} &nbsp;Turma ${escapeHTML(t.turma)}</span><span>${t.total} resposta${t.total>1?"s":""}</span></div><div class="track"><i style="width:${w}%"></i></div></div>`; }).join("")+'</div>';
+  const total=T.reduce((a,t)=>a+t.total,0);
+  document.getElementById("placarNota").textContent = `${total} respostas de ${T.length} turma${T.length>1?"s":""} nesta rodada`+(placarHora?` · atualizado às ${placarHora.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}`:"")+". Pode levar alguns minutos para uma resposta nova aparecer.";
+}
+async function initPlacar(){
+  clearInterval(placarTimer);
+  await carregarDados(true); desenharPlacar();
+  placarTimer=setInterval(async()=>{ if(!S.placar){ clearInterval(placarTimer); return; } await carregarDados(true); desenharPlacar(); },30000);
+}
+async function posicaoTurma(){
+  await carregarDados(true);
+  const T=(TURMAS||[]).slice().sort((a,b)=>b.total-a.total), i=T.findIndex(t=>t.turma===normTurma(S.turma));
+  const el=document.getElementById("posTurma"); if(!el) return;
+  el.textContent = i>=0 ? `Agora sua turma está em ${i+1}º lugar no placar, com ${T[i].total} resposta${T[i].total>1?"s":""}.` : "Sua resposta entra no placar em alguns minutos.";
+}
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 
 /* ---------- Interação ---------- */
 function bind(el){
   el.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>act(b.dataset.act)));
   requestAnimationFrame(()=>requestAnimationFrame(()=>el.querySelectorAll(".track i").forEach(i=>i.style.width=i.dataset.w+"%")));
+  if(S.placar){ initPlacar(); return; }
   if(S.map){ initMap(el); return; }
+  if(S.finished && S.i>=Q.length) posicaoTurma();
   if(S.panel) return;
   const q = Q[S.i];
   if(q && q.options){
@@ -629,9 +684,11 @@ function advance(addXp=true){
 }
 
 function act(a){
-  if(a==="start"){ S.panel=false; S.map=false; S.i=0; render(1); }
+  if(a==="start"){ S.panel=false; S.map=false; S.placar=false; if(location.hash==="#placar") history.replaceState(null,"",location.pathname); S.i=0; render(1); }
   else if(a==="panel"){ S.map=false; S.panel=true; render(1); }
   else if(a==="map"){ S.map=true; render(1); }
+  else if(a==="placar"){ S.placar=true; render(1); }
+  else if(a==="closeplacar"){ S.placar=false; if(location.hash==="#placar") history.replaceState(null,"",location.pathname); render(-1); }
   else if(a==="closemap"){ S.map=false; render(-1); }
   else if(a==="closepanel"){ S.panel=false; render(-1); }
   else if(a==="next"){ const k=Q[S.i].key, f=!S.badges.has(k); S.badges.add(k); advance(f); }
@@ -685,6 +742,8 @@ function confetti(){
     if(++f<200) requestAnimationFrame(loop); else x.clearRect(0,0,c.width,c.height);})();
 }
 
+if(location.hash==="#placar") S.placar=true;
+window.addEventListener("hashchange",()=>{ S.placar = location.hash==="#placar"; render(1); });
 render(1);
 </script>
 <!--
