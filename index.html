@@ -191,6 +191,16 @@ select:focus,input:focus{outline:none;border-color:var(--leaf)}
 .filters{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
 .filters button{flex:none;padding:8px 12px;border-radius:99px;border:2px solid var(--line);background:#fff;font-weight:800;font-size:13.5px}
 .filters button.on{background:var(--forest);border-color:var(--forest);color:#fff}
+.flabel{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:2px 0 6px}
+.filters button:disabled{opacity:.4}
+.irbairro{width:100%;padding:11px 12px;border-radius:14px;border:2px solid var(--line);background:#fff;font:inherit;font-weight:700;font-size:15px;margin-bottom:12px;color:var(--ink)}
+.legclasse{font-size:12.5px;color:var(--muted);font-weight:700;margin:10px 0 4px;line-height:1.5}
+.selo{display:inline-block;color:#fff;font-weight:800;font-size:12px;padding:3px 8px;border-radius:99px;margin-top:4px}
+.grupo{margin:12px 0 4px}
+.gtit{font-weight:800;font-size:15px;margin-bottom:6px}.gtit small{color:var(--muted);font-weight:700}
+.brow{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0;font:inherit;cursor:pointer}
+.brow:hover{border-color:var(--leaf)}.brow.me{border-color:var(--forest);border-width:2.5px}
+.brow .pt{width:12px;height:12px;border-radius:50%;flex:none}.brow .nm{flex:1;font-weight:800}.brow .vl{font-size:13px;color:var(--muted);font-weight:700;white-space:nowrap}
 .legend{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-weight:700}
 .legend i{flex:1;height:10px;border-radius:99px;background:linear-gradient(90deg,#3cc77a,#f5b82e,#e0643c)}
 .mapnote{font-size:13px;color:var(--muted);line-height:1.45;margin-top:8px}
@@ -589,7 +599,24 @@ function panelHTML(){
 }
 /* ---------- Mapa ---------- */
 const PROB = {todos:"Todos os problemas", enchente:"🌊 Alagamento", lixo:"🗑️ Lixo / praças", esgoto:"🦠 Esgoto", agua:"🚱 Falta d'água"};
-let MAPA_NOVO = null, TURMAS = null, mapaFiltro = "todos", lmap = null, lcamada = null, placarTimer = null, placarHora = null;
+let MAPA_NOVO = null, TURMAS = null, mapaFiltro = "todos", mapaClasse = "todas", lmap = null, lcamada = null, placarTimer = null, placarHora = null, MARK = {};
+/* Classificação dos bairros: "todos" = média de problemas por pessoa; filtro de um problema = % que apontam */
+const CLASSES = {
+  alto:   {nome:"Alerta alto",   ic:"🔴", cor:"#d9472b"},
+  medio:  {nome:"Alerta médio",  ic:"🟠", cor:"#f0a020"},
+  baixo:  {nome:"Alerta baixo",  ic:"🟢", cor:"#2fae63"},
+  poucos: {nome:"Poucos dados",  ic:"⚪", cor:"#9aa7a0"}
+};
+function classeBairro(a){
+  if(a.n<3) return "poucos";
+  if(mapaFiltro==="todos"){ const m=(a.enchente+a.lixo+a.agua+a.esgoto)/a.n; return m>=2?"alto":m>=1?"medio":"baixo"; }
+  const p=a[mapaFiltro]/a.n; return p>=.5?"alto":p>=.25?"medio":"baixo";
+}
+function regraClasse(){
+  return mapaFiltro==="todos"
+    ? "🔴 2 ou mais problemas por pessoa · 🟠 de 1 a 2 · 🟢 menos de 1 · ⚪ menos de 3 respostas"
+    : `🔴 50% ou mais apontam ${PROB[mapaFiltro].replace(/^\S+ /,"").toLowerCase()} · 🟠 de 25% a 49% · 🟢 menos de 25% · ⚪ menos de 3 respostas`;
+}
 const normTurma = t => String(t||"").trim();
 function mapaDados(){
   const t = JSON.parse(JSON.stringify(MAPA_ANTIGO));
@@ -619,11 +646,15 @@ function mapHTML(){
   return `<div class="kicker">Mapa da investigação</div>
   <h2 class="q">Onde estão os problemas?</h2>
   <p class="sub">Cada círculo é um bairro: quanto maior, mais detetives responderam. Toque para ver os detalhes.</p>
-  <div class="filters">${Object.entries(PROB).map(([k,v])=>`<button data-f="${k}" class="${k===mapaFiltro?'on':''}">${v}</button>`).join("")}</div>
+  <div class="flabel">Problema</div>
+  <div class="filters" id="fProb">${Object.entries(PROB).map(([k,v])=>`<button data-f="${k}" class="${k===mapaFiltro?'on':''}">${v}</button>`).join("")}</div>
+  <div class="flabel">Classificação do bairro</div>
+  <div class="filters" id="fClasse"></div>
+  <select id="irBairro" class="irbairro" aria-label="Ir para um bairro"><option value="">📍 Ir para um bairro…</option></select>
   <div class="mapbox" id="lmap"></div>
-  <div class="legend"><span id="legA">0</span><i></i><span id="legB">4 problemas</span></div>
+  <p class="legclasse" id="legClasse"></p>
   <p class="mapnote" id="mapnote"></p>
-  <div class="sec ranking"><h3 id="rankT">Bairros com mais problemas</h3><div id="rank"></div></div>
+  <div class="sec ranking"><h3 id="rankT">Classificação dos bairros</h3><div id="rank"></div></div>
   <p class="mapnote">🔒 O mapa mostra só totais por bairro, nunca endereços. Bairros com menos de 3 respostas aparecem sem detalhes, para ninguém ser identificado.</p>
   <div class="cta"><button class="btn" data-act="closemap">← Voltar</button></div>`;
 }
@@ -634,32 +665,59 @@ function valorBairro(a){
 function desenhar(){
   const t=mapaDados(); const L=window.L;
   if(lcamada) lcamada.remove();
-  lcamada=L.layerGroup().addTo(lmap);
-  let semLocal=0, total=0; const rows=[];
+  lcamada=L.layerGroup().addTo(lmap); MARK={};
+  let semLocal=0, total=0; const rows=[], todos=[], cont={alto:0,medio:0,baixo:0,poucos:0};
   for(const [b,a] of Object.entries(t)){
     total+=a.n;
     if(!COORD[b]){ semLocal+=a.n; continue; }
-    const v=valorBairro(a), poucos=a.n<3;
+    const v=valorBairro(a), poucos=a.n<3, cl=classeBairro(a);
+    cont[cl]++; todos.push({b,a,v,cl});
+    if(mapaClasse!=="todas" && cl!==mapaClasse) continue;
     const media=((a.enchente+a.lixo+a.agua+a.esgoto)/a.n);
     const pc=k=>Math.round(100*a[k]/a.n)+"%";
     const det = poucos ? `<span style="color:#5d6b64">Poucas respostas ainda: detalhes aparecem a partir de 3.</span>` :
       `<div class="pr"><span>🌊 Alagamento</span><b>${pc("enchente")}</b></div><div class="pr"><span>🗑️ Lixo / praças</span><b>${pc("lixo")}</b></div><div class="pr"><span>🦠 Esgoto</span><b>${pc("esgoto")}</b></div><div class="pr"><span>🚱 Falta d'água</span><b>${pc("agua")}</b></div><div class="pr" style="margin-top:4px"><span>Afeta com frequência</span><b>${pc("freq")}</b></div>`;
     const isMe = S.finished && S.bairro===b;
-    L.circleMarker(COORD[b],{radius:8+Math.sqrt(a.n)*5,color:isMe?"#0f3d2e":"#fff",weight:isMe?4:2,fillColor:poucos?"#9aa7a0":cor(v),fillOpacity:.85,className:isMe?"meu-bairro":""})
-      .bindPopup(`<b class="t">${escapeHTML(b)}${isMe?" · seu bairro":""}</b>${a.n} resposta${a.n>1?"s":""}<div style="margin-top:6px">${det}</div>`).addTo(lcamada);
-    if(!poucos) rows.push({b,a,v,media});
+    const C=CLASSES[cl], selo=`<span class="selo" style="background:${C.cor}">${C.ic} ${C.nome}${mapaFiltro!=="todos"&&cl!=="poucos"?" · "+PROB[mapaFiltro].replace(/^\S+ /,"").toLowerCase():""}</span>`;
+    MARK[b]=L.circleMarker(COORD[b],{radius:8+Math.sqrt(a.n)*5,color:isMe?"#0f3d2e":"#fff",weight:isMe?4:2,fillColor:C.cor,fillOpacity:.88,className:isMe?"meu-bairro":""})
+      .bindTooltip(escapeHTML(b),{direction:"top",offset:[0,-6]})
+      .bindPopup(`<b class="t">${escapeHTML(b)}${isMe?" · seu bairro":""}</b>${selo}<div style="margin-top:4px">${a.n} resposta${a.n>1?"s":""}</div><div style="margin-top:6px">${det}</div>`).addTo(lcamada);
+    rows.push({b,a,v,media,cl});
   }
-  rows.sort((x,y)=>y.v-x.v);
-  const lbl = mapaFiltro==="todos" ? "problemas por pessoa (média)" : "% que apontam "+PROB[mapaFiltro].replace(/^\S+ /,"").toLowerCase();
-  document.getElementById("rankT").textContent = mapaFiltro==="todos" ? "Bairros com mais problemas" : "Onde mais aparece: "+PROB[mapaFiltro].replace(/^\S+ /,"");
-  document.getElementById("rank").innerHTML = rows.slice(0,6).map(r=>{ const w=mapaFiltro==="todos"?Math.round(r.media/4*100):Math.round(r.v*100);
-    return `<div class="row${S.finished&&S.bairro===r.b?' me':''}"><div class="lb"><span>${escapeHTML(r.b)}</span><span>${mapaFiltro==="todos"?r.media.toFixed(1).replace(".",","):w+"%"} · ${r.a.n} resp.</span></div><div class="track"><i data-w="${w}" style="width:${w}%"></i></div></div>`; }).join("") + `<p class="note" style="margin-top:8px">Medida: ${lbl}. Só bairros com 3 ou mais respostas.</p>`;
-  document.getElementById("legA").textContent = mapaFiltro==="todos"?"0":"0%";
-  document.getElementById("legB").textContent = mapaFiltro==="todos"?"2+ problemas":"100%";
+  // chips de classificação com contagem
+  const fc=document.getElementById("fClasse");
+  fc.innerHTML=`<button data-c="todas" class="${mapaClasse==="todas"?"on":""}">Todas (${todos.length})</button>`+
+    Object.entries(CLASSES).map(([k,C])=>`<button data-c="${k}" class="${mapaClasse===k?"on":""}"${cont[k]?"":" disabled"}>${C.ic} ${C.nome} (${cont[k]})</button>`).join("");
+  fc.querySelectorAll("button").forEach(x=>x.addEventListener("click",()=>{ mapaClasse=x.dataset.c; desenhar(); }));
+  // seletor "ir para o bairro"
+  const sel=document.getElementById("irBairro");
+  sel.innerHTML='<option value="">📍 Ir para um bairro…</option>'+todos.slice().sort((x,y)=>x.b.localeCompare(y.b,"pt")).map(r=>`<option value="${escapeHTML(r.b)}">${CLASSES[r.cl].ic} ${escapeHTML(r.b)}</option>`).join("");
+  // lista agrupada por classe
+  const ordem=["alto","medio","baixo","poucos"];
+  rows.sort((x,y)=>ordem.indexOf(x.cl)-ordem.indexOf(y.cl) || y.v-x.v || y.a.n-x.a.n);
+  const medida=r=> r.cl==="poucos" ? `${r.a.n} resp.` : (mapaFiltro==="todos" ? r.media.toFixed(1).replace(".",",")+" probl./pessoa" : Math.round(r.v*100)+"%")+` · ${r.a.n} resp.`;
+  let html="";
+  ordem.forEach(k=>{ const g=rows.filter(r=>r.cl===k); if(!g.length) return; const C=CLASSES[k];
+    html+=`<div class="grupo"><div class="gtit" style="color:${C.cor}">${C.ic} ${C.nome} <small>· ${g.length} bairro${g.length>1?"s":""}</small></div>`+
+      g.map(r=>`<button class="brow${S.finished&&S.bairro===r.b?' me':''}" data-b="${escapeHTML(r.b)}"><span class="pt" style="background:${C.cor}"></span><span class="nm">${escapeHTML(r.b)}</span><span class="vl">${medida(r)}</span></button>`).join("")+`</div>`; });
+  document.getElementById("rankT").textContent = mapaFiltro==="todos" ? "Classificação dos bairros" : "Classificação: "+PROB[mapaFiltro].replace(/^\S+ /,"");
+  document.getElementById("rank").innerHTML = (html || `<p class="note">Nenhum bairro nesta classificação.</p>`) + `<p class="note" style="margin-top:8px">Toque num bairro para vê-lo no mapa.</p>`;
+  document.getElementById("rank").querySelectorAll(".brow").forEach(x=>x.addEventListener("click",()=>irPara(x.dataset.b)));
+  document.getElementById("legClasse").textContent = regraClasse();
   document.getElementById("mapnote").textContent = `${total} respostas no mapa${MAPA_NOVO?" (1ª rodada + respostas novas, atualizado agora)":" (1ª rodada da pesquisa"+(eu()?" + a sua)":")")}${semLocal?` · ${semLocal} sem bairro no mapa`:""}.`;
 }
+function irPara(b){
+  if(!lmap || !COORD[b]) return;
+  if(!MARK[b]){ mapaClasse="todas"; desenhar(); }
+  const m=MARK[b]; if(!m) return;
+  document.getElementById("lmap").scrollIntoView({behavior:"smooth",block:"center"});
+  lmap.flyTo(COORD[b],14,{duration:.8});
+  setTimeout(()=>m.openPopup(),850);
+  const sel=document.getElementById("irBairro"); if(sel) sel.value="";
+}
 async function initMap(el){
-  el.querySelectorAll(".filters button").forEach(b=>b.addEventListener("click",()=>{ mapaFiltro=b.dataset.f; el.querySelectorAll(".filters button").forEach(x=>x.classList.toggle("on",x===b)); desenhar(); }));
+  el.querySelectorAll("#fProb button").forEach(b=>b.addEventListener("click",()=>{ mapaFiltro=b.dataset.f; el.querySelectorAll("#fProb button").forEach(x=>x.classList.toggle("on",x===b)); desenhar(); }));
+  el.querySelector("#irBairro").addEventListener("change",e=>{ if(e.target.value) irPara(e.target.value); });
   if(!window.L){ document.getElementById("lmap").innerHTML='<p style="padding:20px;color:#5d6b64">Não foi possível carregar o mapa. Verifique a internet.</p>'; return; }
   if(lmap){ lmap.remove(); lmap=null; }
   lmap=L.map("lmap",{zoomControl:true,attributionControl:true}).setView([-1.37,-48.40],12);
